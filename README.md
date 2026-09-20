@@ -50,38 +50,77 @@ from three sources in one list.
 
 ## Install
 
-From the Marketplace: search for **Command Layer** in the Extensions view,
-or run
+The extension is `package.json`, `extension.js`, `utils.js` and `icon.png`
+-- no build step, no dependencies. Its id is **`saemeon.command-layer`**
+(`publisher` `saemeon`, `name` `command-layer` in `package.json`). Treat
+both as fixed: the id is the authority of every URI below, and the macOS
+launcher decides whether to offer its VS Code bridge rows by looking for it
+in `~/.vscode/extensions`.
+
+Install it one way only. Two copies with the same id, say a Marketplace
+install and a linked folder, are not reliably told apart by VS Code.
+
+### From the Marketplace
+
+Search for **Command Layer** in the Extensions view (`cmd+shift+X`), or run
 
 ```sh
 code --install-extension saemeon.command-layer
 ```
 
-It is also on [Open VSX](https://open-vsx.org/extension/saemeon/command-layer)
-for VSCodium, Cursor and other editors that use it. The extension is
-`package.json`, `extension.js`, `utils.js` and `icon.png` -- no build step,
-no dependencies.
+### From a `.vsix` package
 
-Its id is **`saemeon.command-layer`** (`publisher` `saemeon`, `name`
-`command-layer` in `package.json`). Treat both as fixed: the id is the
-authority of every URI below, and the macOS launcher decides whether to
-offer its VS Code bridge rows by looking for it in
-`~/.vscode/extensions/extensions.json`.
-
-**From source**, to work on it: clone this repository and link it in, so an
-edit applies on the next **Developer: Reload Window**:
+Build the package from a clone of this repository, or take a `.vsix` you were
+given, and install it:
 
 ```sh
 git clone https://github.com/saemeon/vscode-command-layer-extension.git
+cd vscode-command-layer-extension
+npx @vscode/vsce package
+code --install-extension command-layer-0.1.0.vsix
+```
+
+VS Code copies the package into `~/.vscode/extensions/`, so a later change in
+the clone does not reach it: build and install again. In the Extensions view,
+**...** then **Install from VSIX...** does the same as the last command.
+
+### From a cloned folder
+
+To run the source itself, so an edit applies on the next **Developer: Reload
+Window**, clone the repository and point VS Code at the folder:
+
+```sh
+git clone https://github.com/saemeon/vscode-command-layer-extension.git
+```
+
+Then in VS Code open the Command Palette (`cmd+shift+P`), run **Developer:
+Install Extension from Location...** and choose the cloned folder. VS Code
+records the folder where it is, without copying it, so `git pull` in the
+clone updates what runs after a reload. Uninstall it from the Extensions
+view like any other.
+
+Or link the folder into VS Code's extensions folder yourself, named
+`<id>-<version>` with the `version` of `package.json`, and quit and reopen
+VS Code once:
+
+```sh
 ln -s "$PWD/vscode-command-layer-extension" ~/.vscode/extensions/saemeon.command-layer-0.1.0
 ```
 
-Then quit and reopen VS Code; `code --list-extensions` lists
-`saemeon.command-layer`. Removing the link uninstalls it. A `.vsix` from
-`npx @vscode/vsce package`, installed with `code --install-extension
-command-layer-0.1.0.vsix`, lands in the same folder name, as a copy.
-**Developer: Install Extension from Location...** works too, but where VS
-Code then keeps it is its business.
+Removing the link uninstalls it, and the name of the link changes with
+`package.json`'s version.
+
+Either way `code --list-extensions` lists `saemeon.command-layer`.
+
+To try a change without installing anything, open a window with the folder
+loaded as an extension, gone when the window closes:
+
+```sh
+code --extensionDevelopmentPath="$PWD/vscode-command-layer-extension"
+```
+
+Editors that keep their own extensions folder, such as Cursor
+(`~/.cursor/extensions`), take the same link there.
 
 All configuration starts empty. Nothing happens until you add actions,
 and nothing is reachable from outside VS Code until you allow it.
