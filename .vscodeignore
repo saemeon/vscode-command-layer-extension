@@ -3,5 +3,4 @@
 .vscodeignore
 .DS_Store
 .claude/**
-icon.svg
 *.vsix

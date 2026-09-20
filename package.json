@@ -1191,7 +1191,7 @@
         {
           "id": "commandLayerContainer",
           "title": "Command Layer",
-          "icon": "icon.svg"
+          "icon": "$(layers)"
         }
       ]
     }
