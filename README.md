@@ -550,15 +550,20 @@ nothing an existing extension already does properly.
 ## From outside VS Code
 
 A URI handler lets another program — a launcher, a script, `open` on
-macOS — run a command, a task or one of your global actions in the VS Code
-window you used last. One path, three forms:
+macOS, a link in a Markdown file — run a command, a task or one of your
+global actions in the VS Code window you used last. The shape of these URIs,
+with the command and its arguments as query parameters, is taken from
+[Command Executor](https://marketplace.visualstudio.com/items?itemName=eliostruyf.execcommand)
+by Elio Struyf, which does only this. What is added here is the allowlist
+below, and that a command's arguments can be given the same typed forms as an
+action's. There is no path: the URI is the extension's id and a query.
 
 | URI | Runs | Allowed by |
 |---|---|---|
-| `vscode://saemeon.command-layer/run?action=<id>` | the `commandLayer.globalActions` entry with that `id` | giving the entry an `id` |
-| `vscode://saemeon.command-layer/run?command=<id>` | a VS Code command, no arguments | `commandLayer.uriHandler.allowedCommands`, or `allowAnyCommand` |
-| `vscode://saemeon.command-layer/run?command=<id>&args=<json>` | a VS Code command with arguments | `commandLayer.uriHandler.allowedCommands` only |
-| `vscode://saemeon.command-layer/run?task=<label>` | a task, as **Run Task** names it | `commandLayer.uriHandler.allowedTasks` |
+| `vscode://saemeon.command-layer?action=<id>` | the `commandLayer.globalActions` entry with that `id` | giving the entry an `id` |
+| `vscode://saemeon.command-layer?command=<id>` | a VS Code command, no arguments | `commandLayer.uriHandler.allowedCommands`, or `allowAnyCommand` |
+| `vscode://saemeon.command-layer?command=<id>&args0=<value>&args1=<value>` | a VS Code command with arguments | `commandLayer.uriHandler.allowedCommands` only |
+| `vscode://saemeon.command-layer?task=<label>` | a task, as **Run Task** names it | `commandLayer.uriHandler.allowedTasks` |
 
 Everything is off until a setting names it:
 
@@ -575,14 +580,18 @@ this handler — list only what you would let any of them run. VS Code
 itself asks once before letting an extension open a URI from outside;
 its dialog has a checkbox to stop asking.
 
-**`args`** is a JSON array, the command's arguments in order — the same
-list as an action's `args` in settings, with the same typed forms
-(`["uri", "/path"]`, `["object", {...}]`, `["regex", ...]`, `["number",
-...]`, `["boolean", ...]`). Nothing in it is substituted: `$1` and
-`${file}` arrive as literal text, and `${command:...}` runs nothing.
-VS Code decodes a URI's query once before the handler sees it, so encode
-the JSON **twice** (`encodeURIComponent(encodeURIComponent(json))`); once
-is enough only when the JSON has no `&`, `+` or `%`.
+**Arguments** are `args0`, `args1`, … — the command's arguments in order,
+counted from `args0` with none missing. Each value is read as JSON when it
+parses and is the text otherwise, so `args0=42` passes the number 42,
+`args0=true` a boolean, `args0={"query":"x"}` an object and `args0=hello` the
+string `hello`. Quote a string that would parse to keep it one:
+`args0="42"`. The typed forms of an action's `args` are JSON too
+(`["uri", "/path"]`, `["object", {...}]`, `["regex", ...]`, `["number", ...]`,
+`["boolean", ...]`). Nothing in a value is substituted: `$1` and `${file}`
+arrive as literal text, and `${command:...}` runs nothing. VS Code decodes a
+URI's query once before the handler sees it, so a value containing `&`, `+`
+or a percent sign has to be percent-encoded **twice**; anything else needs it
+once, as in any URL.
 
 **`task`** is matched against the label **Run Task** shows: `build` for a
 `tasks.json` task, `npm: build` for a detected one. A `tasks.json` task
@@ -598,11 +607,12 @@ commands, a task, or text a shell runs as their argument — `runCommands`,
 `workbench.action.createTerminalEditor`. Listing one of those would reach
 past the allowlist.
 
-A request that is refused or malformed — unknown path, not exactly one of
-`action`/`command`/`task`, a key given twice, `args` with anything but
-`command`, JSON that does not parse or is not an array — and a command
-that throws each show an error message with **Show Details**, logged to
-the **Command Layer** output channel along with every URI that ran.
+A request that is refused or malformed — a path, more than one of
+`action`/`command`/`task` or none, a key given twice, a parameter it does not
+know (the old `args=` among them), arguments with a gap or with anything but
+`command` — and a command that throws each show an error message with **Show
+Details**, logged to the **Command Layer** output channel along with every URI
+that ran.
 
 ### The macOS launcher's rows
 
@@ -612,30 +622,38 @@ URIs and each doing nothing until you allow what it sends:
 
 | Row | Sends | Needs |
 |---|---|---|
-| VS Code: Find in files for "…" | `?command=workbench.action.findInFiles&args=[{"query":"…","triggerSearch":true}]` | `workbench.action.findInFiles` in `allowedCommands` |
-| VS Code: Go to file "…" | `?command=workbench.action.quickOpen&args=["…"]` | `workbench.action.quickOpen` in `allowedCommands` |
+| VS Code: Find in files for "…" | `?command=workbench.action.findInFiles&args0={"query":"…","triggerSearch":true}` | `workbench.action.findInFiles` in `allowedCommands` |
+| VS Code: Go to file "…" | `?command=workbench.action.quickOpen&args0=…` | `workbench.action.quickOpen` in `allowedCommands` |
 | VS Code: Run task… | `?task=<label>` | the label in `allowedTasks` |
 | VS Code: Run command… | `?command=<id>` | the id in `allowedCommands` |
 
-### Example: what a launcher sends
+### Examples
 
 Open a folder in a new window. With `"vscode.openFolder"` in
-`allowedCommands`, the arguments are
-
-```json
-[["uri", "/Users/me/my project"], {"forceNewWindow": true}]
-```
-
-and the URI, that JSON encoded twice:
+`allowedCommands`, the arguments are `["uri", "/Users/me/my project"]` and
+`{"forceNewWindow": true}`, each JSON encoded once:
 
 ```sh
-open 'vscode://saemeon.command-layer/run?command=vscode.openFolder&args=%255B%255B%2522uri%2522%252C%2522%252FUsers%252Fme%252Fmy%2520project%2522%255D%252C%257B%2522forceNewWindow%2522%253Atrue%257D%255D'
+open 'vscode://saemeon.command-layer?command=vscode.openFolder&args0=%5B%22uri%22%2C%22%2FUsers%2Fme%2Fmy%20project%22%5D&args1=%7B%22forceNewWindow%22%3Atrue%7D'
+```
+
+Open Quick Open with `README` typed in, with `"workbench.action.quickOpen"`
+in `allowedCommands`:
+
+```sh
+open 'vscode://saemeon.command-layer?command=workbench.action.quickOpen&args0=README'
 ```
 
 Run the `build` task, with `"build"` in `allowedTasks`:
 
 ```sh
-open 'vscode://saemeon.command-layer/run?task=build'
+open 'vscode://saemeon.command-layer?task=build'
+```
+
+As a link in a Markdown file:
+
+```md
+[Build](vscode://saemeon.command-layer?task=build)
 ```
 
 ## Validation

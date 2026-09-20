@@ -1153,7 +1153,7 @@
             "type": "string"
           },
           "default": [],
-          "markdownDescription": "Command ids `vscode://saemeon.command-layer/run?command=<id>` may run, with or without `&args=<json array>`. Exact ids, no patterns. Empty by default, so nothing runs.\n\nThe URI handler is reachable by any local application and by any web page that can open a URL: list only commands you would be happy for any of them to run with arguments of their choosing. `runCommands`, the terminal-creating and `sendSequence` commands, `workbench.action.tasks.runTask`, ids starting with `_` and `commandLayer.*` are refused even when listed."
+          "markdownDescription": "Command ids `vscode://saemeon.command-layer?command=<id>` may run, with or without `&args0=<value>&args1=<value>…`. Exact ids, no patterns. Empty by default, so nothing runs.\n\nThe URI handler is reachable by any local application and by any web page that can open a URL: list only commands you would be happy for any of them to run with arguments of their choosing. `runCommands`, the terminal-creating and `sendSequence` commands, `workbench.action.tasks.runTask`, ids starting with `_` and `commandLayer.*` are refused even when listed."
         },
         "commandLayer.uriHandler.allowedTasks": {
           "type": "array",
@@ -1161,12 +1161,12 @@
             "type": "string"
           },
           "default": [],
-          "markdownDescription": "Task labels `vscode://saemeon.command-layer/run?task=<label>` may run, as the Run Task picker names them (`build`, or `npm: build` for a detected task). Exact labels. Empty by default. Never in an untrusted workspace."
+          "markdownDescription": "Task labels `vscode://saemeon.command-layer?task=<label>` may run, as the Run Task picker names them (`build`, or `npm: build` for a detected task). Exact labels. Empty by default. Never in an untrusted workspace."
         },
         "commandLayer.uriHandler.allowAnyCommand": {
           "type": "boolean",
           "default": false,
-          "markdownDescription": "Let `vscode://saemeon.command-layer/run?command=<id>` run **any** VS Code command **without arguments**.\n\nOff by default. The URI handler is reachable by any local application and by any web page that can open a URL, so an open handler is a real hole — that is the shape of the argument-injection bugs found in VS Code's own git handler. `&args=` still needs the id in `commandLayer.uriHandler.allowedCommands`.\n\nPrefer `commandLayer.uriHandler.allowedCommands`, or `?action=<id>`: give the entry an `id` in `commandLayer.globalActions` and only that entry becomes reachable."
+          "markdownDescription": "Let `vscode://saemeon.command-layer?command=<id>` run **any** VS Code command **without arguments**.\n\nOff by default. The URI handler is reachable by any local application and by any web page that can open a URL, so an open handler is a real hole — that is the shape of the argument-injection bugs found in VS Code's own git handler. `&args0=` and the rest still need the id in `commandLayer.uriHandler.allowedCommands`.\n\nPrefer `commandLayer.uriHandler.allowedCommands`, or `?action=<id>`: give the entry an `id` in `commandLayer.globalActions` and only that entry becomes reachable."
         }
       }
     },

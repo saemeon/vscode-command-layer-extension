@@ -1420,11 +1420,12 @@ function guarded(name, fn) {
 // =====================================================================
 // URI HANDLER — reaching these commands from outside VS Code
 //
-//   vscode://saemeon.command-layer/run?action=<id>
-//   vscode://saemeon.command-layer/run?command=<id>[&args=<json array>]
-//   vscode://saemeon.command-layer/run?task=<label>
+//   vscode://saemeon.command-layer?action=<id>
+//   vscode://saemeon.command-layer?command=<id>[&args0=<value>&args1=<value>...]
+//   vscode://saemeon.command-layer?task=<label>
 //
-// The interface is documented in README.md, "From outside VS Code".
+// The shape is Command Executor's (eliostruyf.execcommand). The interface
+// is documented in README.md, "From outside VS Code".
 //
 // Any local application and any web page that can open a URL reaches
 // this handler, so nothing runs unless a setting names it, and args are
@@ -1432,9 +1433,9 @@ function guarded(name, fn) {
 // run a command the allowlist never saw.
 // =====================================================================
 
-const URI_PATH = '/run';
 const URI_KINDS = ['action', 'command', 'task'];
-const MAX_URI_ARGS = 64 * 1024;
+const URI_ARG_KEY = /^args(0|[1-9]\d*)$/;
+const MAX_URI_QUERY = 64 * 1024;
 
 // Refused whatever the allowlist says. Each takes, as an argument, other
 // command ids, a task, or text a shell runs — so allowlisting one would
@@ -1463,29 +1464,30 @@ function uriSettings() {
   };
 }
 
-// VS Code percent-decodes the query once before a handler sees it, so a
-// JSON value containing & or + only survives encoded twice. A JSON array
-// starts with "[", its encoding with "%5B", so both spellings are read.
-function decodeUriArgs(raw) {
-  let text = raw.trim();
-  if (/^%5b/i.test(text)) {
+// Each ?argsN= is one argument, its JSON when it parses (42, true, null,
+// {"query": "x"}, ["uri", "/path"]) and its text otherwise. Quote a string
+// that would parse ("42") to keep it one. VS Code percent-decodes the query
+// once before the handler sees it, so a value containing &, + or % only
+// survives encoded twice.
+function uriArgs(params) {
+  const indexes = [...new Set(params.keys())]
+    .map((key) => URI_ARG_KEY.exec(key))
+    .filter(Boolean)
+    .map((match) => Number(match[1]))
+    .sort((a, b) => a - b);
+  indexes.forEach((n, i) => {
+    if (n !== i) throw new UriRefusal(`?args${i}= is missing, and arguments are in order from ?args0=`);
+  });
+  return indexes.map((n) => {
+    const text = params.get(`args${n}`);
+    let value = text;
     try {
-      text = decodeURIComponent(text);
+      value = JSON.parse(text);
     } catch {
-      throw new UriRefusal('?args= is not valid percent-encoding');
+      // not JSON: the text itself is the argument
     }
-  }
-  if (text.length > MAX_URI_ARGS) throw new UriRefusal('?args= is too long');
-  let parsed;
-  try {
-    parsed = JSON.parse(text);
-  } catch (err) {
-    throw new UriRefusal(`?args= is not valid JSON — ${err.message}`);
-  }
-  if (!Array.isArray(parsed)) {
-    throw new UriRefusal('?args= must be a JSON array of arguments, in order');
-  }
-  return parsed.map(literalArg);
+    return literalArg(value);
+  });
 }
 
 // The typed forms of settings' `args`, with nothing substituted.
@@ -1533,7 +1535,7 @@ function commandRefusal(id, hasArgs, settings) {
   if (settings.allowedCommands.includes(id)) return undefined;
   if (settings.allowAnyCommand && !hasArgs) return undefined;
   if (settings.allowAnyCommand) {
-    return `"${id}" is not in commandLayer.uriHandler.allowedCommands, which ?args= needs`;
+    return `"${id}" is not in commandLayer.uriHandler.allowedCommands, which arguments need`;
   }
   return `"${id}" is not in commandLayer.uriHandler.allowedCommands`;
 }
@@ -1554,25 +1556,32 @@ async function findTask(label) {
 }
 
 async function dispatchUri(uri) {
-  const pathname = (uri.path || '').replace(/\/+$/, '');
-  if (pathname !== URI_PATH) {
-    throw new UriRefusal(`unknown path "${uri.path}" — the handler answers ${URI_PATH}`);
+  if ((uri.path || '').replace(/\/+$/, '') !== '') {
+    throw new UriRefusal(`unknown path "${uri.path}" — the handler takes no path`);
   }
+  if ((uri.query || '').length > MAX_URI_QUERY) throw new UriRefusal('the query is too long');
 
   const params = new URLSearchParams(uri.query || '');
+  for (const key of new Set(params.keys())) {
+    if (URI_KINDS.includes(key) || URI_ARG_KEY.test(key)) continue;
+    if (key === 'args') {
+      throw new UriRefusal('?args= is not taken: give each argument as ?args0=, ?args1=, …');
+    }
+    throw new UriRefusal(`unknown parameter ?${key}=`);
+  }
+  for (const key of new Set(params.keys())) {
+    if (params.getAll(key).length > 1) throw new UriRefusal(`?${key}= is given more than once`);
+  }
   const kinds = URI_KINDS.filter((k) => params.has(k));
   if (kinds.length !== 1) {
     throw new UriRefusal('a URI names exactly one of ?action=, ?command= or ?task=');
   }
   const kind = kinds[0];
-  for (const key of [kind, 'args']) {
-    if (params.getAll(key).length > 1) throw new UriRefusal(`?${key}= is given more than once`);
-  }
   const name = (params.get(kind) || '').trim();
   if (!name) throw new UriRefusal(`?${kind}= is empty`);
-  const rawArgs = params.get('args');
-  if (rawArgs !== null && kind !== 'command') {
-    throw new UriRefusal('?args= is only taken with ?command=');
+  const args = uriArgs(params);
+  if (args.length > 0 && kind !== 'command') {
+    throw new UriRefusal('?args0= and the rest are only taken with ?command=');
   }
 
   const settings = uriSettings();
@@ -1587,10 +1596,9 @@ async function dispatchUri(uri) {
   }
 
   if (kind === 'command') {
-    const refusal = commandRefusal(name, rawArgs !== null, settings);
+    const refusal = commandRefusal(name, args.length > 0, settings);
     if (refusal) throw new UriRefusal(refusal);
-    const args = rawArgs === null ? [] : decodeUriArgs(rawArgs);
-    log('Info', `[uri] command ${name} ${rawArgs === null ? '' : JSON.stringify(args)}`);
+    log('Info', `[uri] command ${name} ${args.length === 0 ? '' : JSON.stringify(args)}`);
     await vscode.commands.executeCommand(name, ...args);
     return;
   }
@@ -1613,8 +1621,8 @@ class ActionUriHandler {
     } catch (err) {
       const refused = err instanceof UriRefusal;
       const message = refused
-        ? `refused ${uri.path || ''}?${uri.query || ''} — ${err.message}`
-        : `URI ${uri.path || ''}?${uri.query || ''} failed — ${err && err.message ? err.message : err}`;
+        ? `refused ?${uri.query || ''} — ${err.message}`
+        : `URI ?${uri.query || ''} failed — ${err && err.message ? err.message : err}`;
       log('Error', `[uri] ${refused ? message : (err && err.stack) || message}`);
       vscode.window
         .showErrorMessage(`Command Layer: ${message}`, 'Show Details')
