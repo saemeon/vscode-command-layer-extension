@@ -50,29 +50,38 @@ from three sources in one list.
 
 ## Install
 
-The extension is `package.json`, `extension.js`, `utils.js`, `icon.png`
-and `icon.svg` — no build step, no dependencies.
-
-Its id is **`local.command-layer`** (`publisher` `local`, `name`
-`command-layer` in `package.json`). Treat both as fixed: the id is the
-authority of every URI below, and the macOS launcher decides whether to
-offer its VS Code bridge rows by looking for a folder named
-`local.command-layer-<version>` in `~/.vscode/extensions/`.
-
-Install it with one symlink, run from the repository's root, so the folder
-VS Code loads is this one and an edit here applies on the next
-**Developer: Reload Window**:
+From the Marketplace: search for **Command Layer** in the Extensions view,
+or run
 
 ```sh
-ln -s "$PWD/vscode/command-layer-extension" ~/.vscode/extensions/local.command-layer-1.0.0
+code --install-extension saemeon.command-layer
+```
+
+It is also on [Open VSX](https://open-vsx.org/extension/saemeon/command-layer)
+for VSCodium, Cursor and other editors that use it. The extension is
+`package.json`, `extension.js`, `utils.js` and `icon.png` -- no build step,
+no dependencies.
+
+Its id is **`saemeon.command-layer`** (`publisher` `saemeon`, `name`
+`command-layer` in `package.json`). Treat both as fixed: the id is the
+authority of every URI below, and the macOS launcher decides whether to
+offer its VS Code bridge rows by looking for it in
+`~/.vscode/extensions/extensions.json`.
+
+**From source**, to work on it: clone this repository and link it in, so an
+edit applies on the next **Developer: Reload Window**:
+
+```sh
+git clone https://github.com/saemeon/vscode-command-layer-extension.git
+ln -s "$PWD/vscode-command-layer-extension" ~/.vscode/extensions/saemeon.command-layer-1.0.0
 ```
 
 Then quit and reopen VS Code; `code --list-extensions` lists
-`local.command-layer`. Removing the link uninstalls it. (Packaging with
-`npx @vscode/vsce package` and `code --install-extension` lands in the same
-folder name, as a copy.) **Developer: Install Extension from Location...**
-works too, but where VS Code then keeps it is its business, so the
-launcher's check may not see it.
+`saemeon.command-layer`. Removing the link uninstalls it. A `.vsix` from
+`npx @vscode/vsce package`, installed with `code --install-extension
+command-layer-1.0.0.vsix`, lands in the same folder name, as a copy.
+**Developer: Install Extension from Location...** works too, but where VS
+Code then keeps it is its business.
 
 All configuration starts empty. Nothing happens until you add actions,
 and nothing is reachable from outside VS Code until you allow it.
@@ -567,10 +576,10 @@ window you used last. One path, three forms:
 
 | URI | Runs | Allowed by |
 |---|---|---|
-| `vscode://local.command-layer/run?action=<id>` | the `commandLayer.globalActions` entry with that `id` | giving the entry an `id` |
-| `vscode://local.command-layer/run?command=<id>` | a VS Code command, no arguments | `commandLayer.uriHandler.allowedCommands`, or `allowAnyCommand` |
-| `vscode://local.command-layer/run?command=<id>&args=<json>` | a VS Code command with arguments | `commandLayer.uriHandler.allowedCommands` only |
-| `vscode://local.command-layer/run?task=<label>` | a task, as **Run Task** names it | `commandLayer.uriHandler.allowedTasks` |
+| `vscode://saemeon.command-layer/run?action=<id>` | the `commandLayer.globalActions` entry with that `id` | giving the entry an `id` |
+| `vscode://saemeon.command-layer/run?command=<id>` | a VS Code command, no arguments | `commandLayer.uriHandler.allowedCommands`, or `allowAnyCommand` |
+| `vscode://saemeon.command-layer/run?command=<id>&args=<json>` | a VS Code command with arguments | `commandLayer.uriHandler.allowedCommands` only |
+| `vscode://saemeon.command-layer/run?task=<label>` | a task, as **Run Task** names it | `commandLayer.uriHandler.allowedTasks` |
 
 Everything is off until a setting names it:
 
@@ -641,13 +650,13 @@ Open a folder in a new window. With `"vscode.openFolder"` in
 and the URI, that JSON encoded twice:
 
 ```sh
-open 'vscode://local.command-layer/run?command=vscode.openFolder&args=%255B%255B%2522uri%2522%252C%2522%252FUsers%252Fme%252Fmy%2520project%2522%255D%252C%257B%2522forceNewWindow%2522%253Atrue%257D%255D'
+open 'vscode://saemeon.command-layer/run?command=vscode.openFolder&args=%255B%255B%2522uri%2522%252C%2522%252FUsers%252Fme%252Fmy%2520project%2522%255D%252C%257B%2522forceNewWindow%2522%253Atrue%257D%255D'
 ```
 
 Run the `build` task, with `"build"` in `allowedTasks`:
 
 ```sh
-open 'vscode://local.command-layer/run?task=build'
+open 'vscode://saemeon.command-layer/run?task=build'
 ```
 
 ## Validation

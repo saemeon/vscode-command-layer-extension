@@ -1420,9 +1420,9 @@ function guarded(name, fn) {
 // =====================================================================
 // URI HANDLER — reaching these commands from outside VS Code
 //
-//   vscode://local.command-layer/run?action=<id>
-//   vscode://local.command-layer/run?command=<id>[&args=<json array>]
-//   vscode://local.command-layer/run?task=<label>
+//   vscode://saemeon.command-layer/run?action=<id>
+//   vscode://saemeon.command-layer/run?command=<id>[&args=<json array>]
+//   vscode://saemeon.command-layer/run?task=<label>
 //
 // The interface is documented in README.md, "From outside VS Code".
 //
