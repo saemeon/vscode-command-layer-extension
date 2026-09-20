@@ -50,77 +50,17 @@ from three sources in one list.
 
 ## Install
 
-The extension is `package.json`, `extension.js`, `utils.js` and `icon.png`
--- no build step, no dependencies. Its id is **`saemeon.command-layer`**
-(`publisher` `saemeon`, `name` `command-layer` in `package.json`). Treat
-both as fixed: the id is the authority of every URI below, and the macOS
-launcher decides whether to offer its VS Code bridge rows by looking for it
-in `~/.vscode/extensions`.
-
-Install it one way only. Two copies with the same id, say a Marketplace
-install and a linked folder, are not reliably told apart by VS Code.
-
-### From the Marketplace
-
 Search for **Command Layer** in the Extensions view (`cmd+shift+X`), or run
 
 ```sh
 code --install-extension saemeon.command-layer
 ```
 
-### From a `.vsix` package
-
-Build the package from a clone of this repository, or take a `.vsix` you were
-given, and install it:
-
-```sh
-git clone https://github.com/saemeon/vscode-command-layer-extension.git
-cd vscode-command-layer-extension
-npx @vscode/vsce package
-code --install-extension command-layer-0.1.0.vsix
-```
-
-VS Code copies the package into `~/.vscode/extensions/`, so a later change in
-the clone does not reach it: build and install again. In the Extensions view,
-**...** then **Install from VSIX...** does the same as the last command.
-
-### From a cloned folder
-
-To run the source itself, so an edit applies on the next **Developer: Reload
-Window**, clone the repository and point VS Code at the folder:
-
-```sh
-git clone https://github.com/saemeon/vscode-command-layer-extension.git
-```
-
-Then in VS Code open the Command Palette (`cmd+shift+P`), run **Developer:
-Install Extension from Location...** and choose the cloned folder. VS Code
-records the folder where it is, without copying it, so `git pull` in the
-clone updates what runs after a reload. Uninstall it from the Extensions
-view like any other.
-
-Or link the folder into VS Code's extensions folder yourself, named
-`<id>-<version>` with the `version` of `package.json`, and quit and reopen
-VS Code once:
-
-```sh
-ln -s "$PWD/vscode-command-layer-extension" ~/.vscode/extensions/saemeon.command-layer-0.1.0
-```
-
-Removing the link uninstalls it, and the name of the link changes with
-`package.json`'s version.
-
-Either way `code --list-extensions` lists `saemeon.command-layer`.
-
-To try a change without installing anything, open a window with the folder
-loaded as an extension, gone when the window closes:
-
-```sh
-code --extensionDevelopmentPath="$PWD/vscode-command-layer-extension"
-```
-
-Editors that keep their own extensions folder, such as Cursor
-(`~/.cursor/extensions`), take the same link there.
+The extension id is **`saemeon.command-layer`**: it is the authority of every
+URI below, and the macOS launcher decides whether to offer its VS Code bridge
+rows by looking for it in `~/.vscode/extensions`. To install from a `.vsix`
+or from a clone of this repository instead, see
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
 All configuration starts empty. Nothing happens until you add actions,
 and nothing is reachable from outside VS Code until you allow it.
@@ -711,9 +651,7 @@ is clean.
 Errors from an action surface as a notification with a **Show Details**
 button; nothing fails silently.
 
----
-
-# Cookbook
+## Cookbook
 
 ### Open a Windows folder path in Explorer
 
@@ -781,16 +719,3 @@ other files.
   ]}
 ]
 ```
-
-## Publishing
-
-Releases are uploaded by hand; there is no CI and no Azure DevOps token.
-
-1. Bump `version` in `package.json` and add an entry to `CHANGELOG.md`.
-2. `npx @vscode/vsce package` writes `command-layer-<version>.vsix`. Try it
-   with `code --install-extension command-layer-<version>.vsix`.
-3. On [marketplace.visualstudio.com/manage](https://marketplace.visualstudio.com/manage),
-   open the `saemeon` publisher and choose **New extension**, then **Visual
-   Studio Code** for the first release, or the extension's `...` menu, then
-   **Update**, for a later one. Upload the `.vsix`.
-4. Tag it: `git tag v<version> && git push --tags`.
