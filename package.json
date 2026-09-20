@@ -69,6 +69,11 @@
         "category": "Command Layer"
       },
       {
+        "command": "commandLayer.openExample",
+        "title": "Open Example Configuration",
+        "category": "Command Layer"
+      },
+      {
         "command": "commandLayer.copyCommandId",
         "title": "Copy Command Id"
       },

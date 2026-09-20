@@ -1,0 +1,95 @@
+// Command Layer: example configuration.
+//
+// Copy the entries you want into your settings.json (Preferences: Open User
+// Settings (JSON)). Nothing here is active until you do: this is an untitled
+// document, and Command Layer starts out with every list empty.
+//
+// Each entry is one command plus its arguments. Placeholders such as $1,
+// ${file} and ${selectedText} are filled in when the command runs.
+{
+  // TEXT. Type "demo: hello world" in any file, then click the underlined
+  // text, or run "Command Layer: Text Actions...". $1 is the first capture group.
+  "commandLayer.textActions": [
+    {
+      "match": "demo:\\s*([^\\r\\n]+)",
+      "actions": [
+        { "title": "Copy the text after demo:", "command": "commandLayer.copyToClipboard", "args": ["$1"] },
+        { "title": "Search the web for it", "command": "commandLayer.openExternal", "args": ["https://duckduckgo.com/?q=$1"] }
+      ]
+    },
+    {
+      "match": "(https?://\\S+)",
+      "actions": [
+        { "title": "Open link", "command": "commandLayer.openExternal", "args": ["$1"] }
+      ]
+    }
+  ],
+
+  // TERMINAL. Paths such as src/app.ts:12 in terminal output become links.
+  "commandLayer.terminalActions": [
+    {
+      "match": "([\\w./-]+\\.(?:ts|js|py|md)):(\\d+)",
+      "actions": [
+        { "title": "Open the file", "command": "vscode.open", "args": [["uri", "$1"]] }
+      ]
+    }
+  ],
+
+  // FILES. Right-click a file in the Explorer, an editor tab or the editor,
+  // then "File Actions...". An entry with "match" only shows for matching paths.
+  "commandLayer.fileActions": [
+    { "title": "Copy path", "command": "commandLayer.copyToClipboard", "args": ["${file}"] },
+    { "title": "Reveal in file manager", "command": "revealFileInOS", "args": [["uri", "${file}"]] },
+    { "title": "Open notebook", "match": "\\.ipynb$", "command": "vscode.open", "args": [["uri", "${file}"]] }
+  ],
+
+  // SELECTION. Select some text, right-click, then "Selection Actions...".
+  "commandLayer.selectionActions": [
+    { "title": "Format selection", "command": "editor.action.formatSelection" },
+    { "title": "Copy as Markdown block", "command": "commandLayer.copyToClipboard",
+      "args": ["```\n${selectedText}\n```"] },
+    { "title": "Search the web", "command": "commandLayer.openExternal",
+      "args": ["https://duckduckgo.com/?q=${selectedText}"] }
+  ],
+
+  // GLOBAL. Anchored to nothing: "Command Layer: Global Actions...", the
+  // views below, or a keybinding. An entry with an "id" becomes the command
+  // commandLayer.action.<id>, which a keybinding can target.
+  "commandLayer.globalActions": [
+    { "id": "openReadme", "title": "Open README", "command": "vscode.open",
+      "args": [["uri", "${workspaceFolder}/README.md"]] },
+    { "title": "Show all commands", "command": "workbench.action.showCommands" }
+  ],
+
+  // STATUS BAR. Buttons at the bottom of the window. An entry with "actions"
+  // opens a picker; "when" limits it, here to Markdown files.
+  "commandLayer.statusBarActions": [
+    { "text": "$(layers) Layer", "command": "commandLayer.runAllActions" },
+    { "text": "$(zap) Md", "alignment": "left", "when": { "language": ["markdown"] },
+      "actions": [
+        "editor.action.formatDocument",
+        { "title": "Open preview", "command": "markdown.showPreviewToSide" }
+      ] }
+  ],
+
+  // VIEWS. A panel in the Explorer sidebar, and one with its own Activity
+  // Bar icon. "from" fills a group from a command that returns a list of actions.
+  "commandLayer.explorerView": [
+    { "title": "Mine", "from": "commandLayer.fetchGlobalActions" },
+    { "title": "Tasks", "from": "commandLayer.fetchVSCodeTasks" },
+    { "title": "Git", "from": "commandLayer.fetchVSCodeCommands", "filter": "git." },
+    { "from": "commandLayer.fetchFrequentActions", "limit": 5 }
+  ],
+  "commandLayer.activityBarView": [
+    { "title": "Selection", "from": "commandLayer.fetchSelectionActions" },
+    { "title": "Files", "from": "commandLayer.fetchFileActions" }
+  ]
+
+  // EVENTS. These run without you asking, so they are left commented out.
+  // "confirm" asks first, and every firing is logged to the Command Layer
+  // output channel.
+  //
+  // "commandLayer.eventActions": [
+  //   { "on": "workspaceOpen", "title": "Pull", "command": "git.pull", "confirm": true }
+  // ]
+}

@@ -1,4 +1,5 @@
 const vscode = require('vscode');
+const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
@@ -1391,6 +1392,21 @@ function validateConfig(knownCommands) {
 }
 
 // =====================================================================
+// EXAMPLE CONFIGURATION
+// =====================================================================
+
+// An untitled document, so nothing is written: the person copies what they
+// want into settings.json.
+async function openExample() {
+  const file = path.join(extensionContext.extensionPath, 'example-settings.jsonc');
+  const doc = await vscode.workspace.openTextDocument({
+    language: 'jsonc',
+    content: fs.readFileSync(file, 'utf8'),
+  });
+  await vscode.window.showTextDocument(doc);
+}
+
+// =====================================================================
 // ACTIVATION
 // =====================================================================
 
@@ -1557,7 +1573,8 @@ function activate(context) {
     vscode.commands.registerCommand('commandLayer.runAllActions', guarded('All Actions', runAllActions)),
     vscode.commands.registerCommand('commandLayer.runEditorTitleAction', guarded('editor title action', runEditorTitleAction)),
     vscode.commands.registerCommand('commandLayer.runStatusBarAction', guarded('status bar action', runStatusBarAction)),
-    vscode.commands.registerCommand('commandLayer.runViewItem', guarded('view item', runViewItem))
+    vscode.commands.registerCommand('commandLayer.runViewItem', guarded('view item', runViewItem)),
+    vscode.commands.registerCommand('commandLayer.openExample', guarded('Open Example Configuration', openExample))
   );
 
   // The two commands with no command equivalent

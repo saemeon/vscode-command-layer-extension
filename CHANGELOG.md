@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- **Command Layer: Open Example Configuration** opens an untitled document
+  with an example of every list, to copy into `settings.json`. The README has
+  a Quick start around it.
+- The README is shorter: the install methods other than the Marketplace moved
+  to `CONTRIBUTING.md`, and the reference sections are tighter. The cookbook
+  stays. It has Marketplace, install and license
+  badges.
+
 ## 0.1.2
 
 The URI handler is Command Executor's (`eliostruyf.execcommand`) in full:

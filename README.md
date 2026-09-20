@@ -1,5 +1,9 @@
 # Command Layer
 
+[![Marketplace version](https://img.shields.io/visual-studio-marketplace/v/saemeon.command-layer)](https://marketplace.visualstudio.com/items?itemName=saemeon.command-layer)
+[![Installs](https://img.shields.io/visual-studio-marketplace/i/saemeon.command-layer)](https://marketplace.visualstudio.com/items?itemName=saemeon.command-layer)
+[![License: MIT](https://img.shields.io/github/license/saemeon/vscode-command-layer-extension)](LICENSE)
+
 Wire any VS Code command to a trigger, entirely in `settings.json`.
 No code, no build step, no dependencies.
 
@@ -7,8 +11,6 @@ Command Layer does one thing: **resolve arguments from context and
 dispatch a command.** It runs no processes, manages no terminals, and
 writes no files. The commands come from VS Code and from the extensions
 you already have.
-
-It's useful in two ways.
 
 **Reach.** VS Code lets you bind commands to keystrokes. Command Layer
 extends that to everything else — text matching a pattern, the current
@@ -56,15 +58,26 @@ Search for **Command Layer** in the Extensions view (`cmd+shift+X`), or run
 code --install-extension saemeon.command-layer
 ```
 
-The extension id is **`saemeon.command-layer`**: it is the authority of every
-URI below, and the macOS launcher decides whether to offer its VS Code bridge
-rows by looking for it in `~/.vscode/extensions`. To install from a `.vsix`
-or from a clone of this repository instead, see
+To install from a `.vsix` or from a clone of this repository instead, see
 [CONTRIBUTING.md](CONTRIBUTING.md).
 
-All configuration starts empty. Nothing happens until you add actions,
-and a link from outside VS Code can run any command, see
-[From outside VS Code](#from-outside-vs-code).
+## Quick start
+
+Everything starts empty, and nothing happens until you add actions. Run
+**Command Layer: Open Example Configuration** from the Command Palette: it
+opens an untitled document with an example of every list below (event
+actions, which run on their own, are left commented out). Copy the entries you want into your `settings.json` (**Preferences: Open User
+Settings (JSON)**), and they apply at once. Then try:
+
+- **Text:** type `demo: hello world` in any file and click it, or run
+  **Command Layer: Text Actions...**.
+- **File:** right-click a file in the Explorer, then **File Actions...**.
+- **Selection:** select some text, right-click, then **Selection Actions...**.
+- **Status bar:** the **Layer** button opens everything that applies.
+- **Views:** a **Command Layer** panel in the Explorer and its own
+  Activity Bar icon appear once their settings are not empty.
+
+More recipes are in the [Cookbook](#cookbook) at the end.
 
 ## How it works
 
@@ -74,9 +87,9 @@ and a link from outside VS Code can run any command, see
   output, an editor event, or a direct invocation from the palette, a
   keybinding, the status bar, or a view.
 - **Resolve** — placeholders in the action's arguments are filled in:
-  capture groups (`$1`), context variables (`${file}`,
-  `${selectedText}`), a prompt (`${input:...}`, `${pick:a,b}`), another
-  command's return value (`${command:...}`).
+  capture groups (`$1`), context variables (`${file}`, `${selectedText}`),
+  a prompt (`${input:...}`, `${pick:a,b}`), another command's return value
+  (`${command:...}`).
 - **Dispatch** — the command runs with those arguments.
 
 ## Actions
@@ -88,38 +101,27 @@ An action is one command plus its arguments.
 | `command` | Any VS Code command id. |
 | `args` | Arguments, in order. Strings are templates; `["uri", tpl]` and friends are typed. |
 | `title` | Label in pickers, CodeLens, hovers, menus. |
-| `when` | Optional conditions — see below. |
+| `when` | Optional conditions, see [Scoping with `when`](#scoping-with-when). |
 
-An action with no arguments can be written as a bare command id:
-
-```jsonc
-"actions": ["editor.action.formatDocument"]
-```
+An action with no arguments can be a bare command id:
+`"actions": ["editor.action.formatDocument"]`.
 
 ### Arguments
 
-`args` maps positionally onto the command's parameters:
-
-```jsonc
-{ "command": "vscode.diff", "args": [["uri", "$1"], ["uri", "$2"], "Comparison"] }
-```
-
-Placeholders resolve when the command runs. This is the thing
-`keybindings.json` can't do — its `args` are static literals, with no
-substitution.
+`args` maps positionally onto the command's parameters. Placeholders
+resolve when the command runs, which `keybindings.json` can't do: its
+`args` are static.
 
 | Placeholder | |
 |---|---|
 | `$0` `$1` `$2` … | capture groups from `match` (`$0` is the whole match) |
-| `${file}` `${fileBasename}` `${fileBasenameNoExtension}` | active or clicked file |
-| `${fileDirname}` `${fileExtname}` | |
+| `${file}` `${fileBasename}` `${fileBasenameNoExtension}` `${fileDirname}` `${fileExtname}` | active or clicked file |
 | `${relativeFile}` `${relativeFileDirname}` | relative to the workspace |
 | `${workspaceFolder}` `${workspaceFolderBasename}` | |
 | `${selectedText}` `${selectedTextList}` `${selectedTextSection}` | first / space-joined / newline-joined |
 | `${lineNumber}` `${lineNumbers}` `${columnNumber}` `${columnNumbers}` | |
 | `${selectedFile}` `${selectedFiles}` | Explorer selection, quoted |
-| `${homedir}` `${tmpdir}` `${platform}` | |
-| `${clipboard}` | current clipboard contents |
+| `${homedir}` `${tmpdir}` `${platform}` `${clipboard}` | |
 | `${env:NAME}` `${config:some.setting}` | |
 | `${input:default}` | prompts you for text |
 | `${pick:a,b,c}` | prompts you to choose one |
@@ -138,40 +140,26 @@ A plain string produces a string. Wrap it to produce something else:
 ["boolean", "$1"]                       // true only if the literal string is "true"
 ```
 
-`object` is the important one — many commands take a single options
-object rather than positional strings:
+`object` is the important one, since many commands take a single options
+object. Its template may be a **structure** (preferred: nothing is parsed,
+so nothing needs escaping) or a **string** that gets parsed, with
+substituted values escaped for you. Typed arguments **compose**:
 
 ```jsonc
 { "command": "workbench.action.findInFiles",
   "args": [["object", { "isRegex": true, "query": ["regex", "$1"] }]] }
 ```
 
-Its template may be a **structure** (preferred — nothing is parsed, so
-nothing needs escaping) or a **string** that gets parsed, in which case
-substituted values are escaped for you. Typed arguments **compose**:
-`["regex", "$1"]` above escapes that one value while the surrounding
-structure stays intact.
-
 ### Running several commands
 
-Use VS Code's own `runCommands`. Substitution works inside it:
+Use VS Code's own `runCommands`; substitution works inside it. Command
+Layer adds no sequencing of its own: `runCommands` runs commands in order
+and stops on failure, and anything beyond that belongs in the thing being run.
 
 ```jsonc
-{
-  "title": "Save and format",
-  "command": "runCommands",
-  "args": [["object", {
-    "commands": [
-      "workbench.action.files.saveAll",
-      "editor.action.formatDocument"
-    ]
-  }]]
-}
+{ "title": "Save and format", "command": "runCommands",
+  "args": [["object", { "commands": ["workbench.action.files.saveAll", "editor.action.formatDocument"] }]] }
 ```
-
-Command Layer adds no sequencing of its own. `runCommands` runs commands
-in order and stops on failure; anything beyond that — waiting, retrying,
-branching — belongs in the thing being run.
 
 ## Configuration
 
@@ -189,37 +177,21 @@ triggers it:
 | `commandLayer.eventActions` | an editor event fires | — |
 
 Plus `commandLayer.explorerView` and `commandLayer.activityBarView` for
-the views.
+the [views](#views). The example configuration has an entry of each.
 
-Each list has a matching menu entry named after it — **Text Actions...**,
-**File Actions...**, **Selection Actions...**, **Global Actions...** —
-plus **All Actions...**, which shows everything applicable in one
-picker, grouped and narrowest first:
-
-```
-Text ──────────────
-  Reveal in File Explorer
-Selection ─────────
-  Copy as Markdown block
-File ──────────────
-  Copy path
-Global ────────────
-  Open notes
-```
-
-All of them always show a picker, even with one action, so a generic
-entry never does something unannounced. The same goes for clicking a
-**link**, in a document or in terminal output: a link shows the matched
-text, not which action will run.
-
-Clicking something that *names* its action runs it directly — a
-CodeLens, a hover entry, a lightbulb entry, a status bar button, a view
-item.
+Each list has a matching picker — **Text Actions...**, **File Actions...**,
+**Selection Actions...**, **Global Actions...** — and **All Actions...**
+shows everything applicable in one picker, grouped and narrowest first.
+They always show a picker, even with one action, so a generic entry never
+does something unannounced; the same goes for clicking a **link**, which
+shows the matched text, not which action will run. Clicking something that
+*names* its action runs it directly: a CodeLens, a hover entry, a
+lightbulb entry, a status bar button, a view item.
 
 **`match` narrows, `when` scopes.** `match` is a pattern that also binds
-capture groups — required where nothing else anchors an entry, optional
-where something already does. `when` is a condition: language, path
-glob, environment variable, setting.
+capture groups: required where nothing else anchors an entry, optional where
+something already does. `when` is a condition: language, path glob,
+environment variable, setting.
 
 ### Text actions
 
@@ -237,39 +209,22 @@ glob, environment variable, setting.
 }
 ```
 
-One matching action runs directly; several show a picker.
-Fields: `match`, `flags`, `when`, `show`, `decoration`, `actions`.
+One matching action runs directly; several show a picker. Fields:
+`match`, `flags`, `when`, `show`, `decoration`, `actions`.
 
 ### File and selection actions
 
-Always offered; add `match` to narrow an entry.
-
-```jsonc
-{
-  "commandLayer.fileActions": [
-    { "title": "Copy path", "command": "commandLayer.copyToClipboard", "args": ["${file}"] },
-    { "title": "Copy all selected", "command": "commandLayer.copyToClipboard", "args": ["${selectedFiles}"] },
-    { "title": "Open notebook", "match": "\\.ipynb$",
-      "command": "vscode.open", "args": [["uri", "${file}"]] }
-  ],
-
-  "commandLayer.selectionActions": [
-    { "title": "Copy as Markdown block", "command": "commandLayer.copyToClipboard",
-      "args": ["```\n${selectedText}\n```"] },
-    { "title": "Open issue", "match": "ISSUE-(\\d+)",
-      "command": "commandLayer.openExternal", "args": ["https://example.com/browse/ISSUE-$1"] }
-  ]
-}
-```
-
-A selection entry **with** a `match` runs once per selection, each with
-its own capture groups — so multi-cursor works. One **without** runs
-once, with `${selectedText}` and `${selectedTextSection}` covering the
-rest.
+Always offered; add `match` to narrow an entry (a path for files, the
+selected text for selections). A selection entry **with** a `match` runs once
+per selection, each with its own capture groups, so multi-cursor works; one
+**without** runs once, with `${selectedText}` and `${selectedTextSection}`
+covering the rest. File actions are multi-select aware: right-click five
+files and `${selectedFiles}` holds all five, quoted and space-joined.
 
 ### Global actions
 
-Anchored to nothing — reachable from the palette, a view, or a keybinding. Give one an `id` and it registers as a real command id:
+Anchored to nothing: reachable from the palette, a view, or a keybinding.
+Give one an `id` and it registers as the command `commandLayer.action.<id>`:
 
 ```jsonc
 // settings.json
@@ -282,35 +237,16 @@ Anchored to nothing — reachable from the palette, a view, or a keybinding. Giv
 
 ### Status bar
 
-```jsonc
-{
-  "commandLayer.statusBarActions": [
-    { "text": "$(rocket) Deploy", "command": "workbench.action.tasks.runTask", "args": ["deploy"] },
-
-    { "text": "$(zap) Py", "alignment": "left", "when": { "language": ["python"] },
-      "actions": [
-        "editor.action.formatDocument",
-        { "title": "Test", "command": "workbench.action.tasks.runTask", "args": ["pytest"] }
-      ] }
-  ]
-}
-```
-
-`text` takes codicons. An entry with `actions` opens a picker instead of
-running one command. Both the button and each entry accept `when`.
+An entry with `text` (which takes codicons) and a `command` is a button; one
+with `actions` opens a picker instead. `alignment` is `left` or `right`, and
+both the button and each entry accept `when`.
 
 ### Event actions
 
-The only actions that run without you initiating them.
+The only actions that run without you initiating them:
 
 ```jsonc
-{
-  "commandLayer.eventActions": [
-    { "on": "workspaceOpen", "title": "Pull", "command": "git.pull", "confirm": true },
-    { "on": "fileSave", "title": "Organise imports",
-      "command": "editor.action.organizeImports", "when": { "language": ["python"] } }
-  ]
-}
+{ "on": "workspaceOpen", "title": "Pull", "command": "git.pull", "confirm": true }
 ```
 
 `on` is `workspaceOpen` or `fileSave`. `confirm` asks before running and
@@ -341,28 +277,23 @@ All conditions present must pass. Terminal output has no document, so
 | Explorer, editor body, tab right-click, Source Control | **File Actions...** |
 | Editor tab-bar button | whatever you set in `commandLayer.editorTitleAction` |
 | Terminal output | link click |
-| Terminal right-click | **Global Actions...** |
-| Command Palette | **Global Actions...** |
+| Terminal right-click, Command Palette | **Global Actions...** |
 | Keybinding | `commandLayer.action.<id>` |
 | Status bar | configured buttons |
 | Views | any configured node |
 | Editor events | `workspaceOpen`, `fileSave` |
 
-File actions are multi-select aware: right-click five files and
-`${selectedFiles}` holds all five, quoted and space-joined.
+### Surfaces
 
-## Surfaces
-
-A `textActions` entry is one subject with several renderings. `show`
-picks which:
-
-| Surface | Appearance |
-|---|---|
-| `link` | Underlined, ctrl-clickable |
-| `codeLens` | Clickable line above the match |
-| `codeAction` | In the lightbulb / Quick Fix menu |
-| `hover` | Clickable links on mouse hover |
-| `decoration` | Styled in place — visual only, no click |
+A `textActions` entry is one subject with several renderings. `show` picks
+which of `link` (underlined, ctrl-clickable), `codeLens` (a clickable line
+above the match), `codeAction` (the lightbulb menu), `hover` and
+`decoration` (styled in place, visual only). Without `show`, an entry uses
+`commandLayer.defaults.surfaces`, which is all but `decoration`, since
+highlighting every match is intrusive; `commandLayer.defaults.decorationStyle` is
+the default style for one. `show: []` means the entry appears
+nowhere, useful while testing one in isolation. Surfaces apply to
+`textActions` only.
 
 ```jsonc
 { "match": "TODO\\(([^)]+)\\)", "show": ["codeLens", "decoration"],
@@ -370,55 +301,22 @@ picks which:
   "actions": [ { "title": "Copy owner", "command": "commandLayer.copyToClipboard", "args": ["$1"] } ] }
 ```
 
-Without `show`, an entry uses the defaults:
-
-```jsonc
-{
-  "commandLayer.defaults.surfaces": ["link", "codeLens", "codeAction", "hover"],
-  "commandLayer.defaults.decorationStyle": { "textDecoration": "underline dotted" }
-}
-```
-
-`decoration` is left out because highlighting every match is intrusive.
-`show: []` means the entry appears nowhere — useful while testing one in
-isolation.
-
-Surfaces apply to `textActions` only. The other lists have one
-appearance each: a picker entry, a terminal link, a button.
-
 ### The editor tab-bar button
 
-Empty by default, so no button appears. Give it an action and it shows
-up at the top-right of the editor:
+Empty by default. Give it an action and it shows up at the top-right of the
+editor. Any command works, and `when` applies too:
 
 ```jsonc
-{
-  "commandLayer.editorTitleAction": {
-    "command": "commandLayer.runAllActions",
-    "tooltip": "Command Layer"
-  }
-}
+{ "commandLayer.editorTitleAction": { "command": "commandLayer.runAllActions", "tooltip": "Command Layer" } }
 ```
-
-Any command works, not just the pickers — `when` applies too, so the
-button can come and go with context.
 
 ## Views
 
-Two containers, each filled by its own setting, each appearing only when
-its setting is non-empty:
-
-```jsonc
-{
-  "commandLayer.explorerView": [ ... ],      // a panel in the Explorer sidebar
-  "commandLayer.activityBarView": [ ... ]    // its own Activity Bar icon
-}
-```
-
-VS Code also lets you drag either view to the secondary sidebar or
-anywhere else.
-
-A node is one of four things:
+Two containers, each filled by its own setting and appearing only when it
+is not empty: `commandLayer.explorerView` (a panel in the Explorer
+sidebar) and `commandLayer.activityBarView` (its own Activity Bar icon).
+VS Code also lets you drag either view anywhere else. A node is one of four
+things:
 
 ```jsonc
 "commandLayer.explorerView": [
@@ -431,47 +329,30 @@ A node is one of four things:
 
   { "title": "Tasks", "from": "commandLayer.fetchVSCodeTasks" },    // group — filled
 
-  { "title": "Git", "children": [                                   // two sources, one flat list
-      { "from": "commandLayer.fetchVSCodeCommands", "filter": "git" },
-      { "from": "commandLayer.fetchGlobalActions", "filter": "git" }
-  ]},
-
   { "from": "commandLayer.fetchFrequentActions", "limit": 5 }       // fragment — splices in
 ]
 ```
 
 **A `title` makes a level.** A node with `from` and no `title` is a
-fragment: its entries splice into the parent rather than nesting. Same
-source, same filter — the `title` alone decides.
-
-`filter` (substring of the visible label, case-insensitive), `limit` and
-`when` apply to any node. A node uses `from` **or** `children`, never
-both.
-
-### List providers
+fragment: its entries splice into the parent rather than nesting. `filter`
+(substring of the visible label, case-insensitive), `limit` and `when` apply
+to any node. A node uses `from` **or** `children`, never both.
 
 `from` is a **command id** returning a list of actions. These ship with
 Command Layer:
 
 | | |
 |---|---|
-| `commandLayer.fetchGlobalActions` | your global actions |
-| `commandLayer.fetchFileActions` | your file actions |
-| `commandLayer.fetchSelectionActions` | your selection actions |
-| `commandLayer.fetchTextActions` | actions from your text entries |
-| `commandLayer.fetchTerminalActions` | actions from your terminal entries |
+| `commandLayer.fetchGlobalActions` `…FileActions` `…SelectionActions` `…TextActions` `…TerminalActions` | your entries of that kind |
 | `commandLayer.fetchVSCodeCommands` | every command registered in VS Code |
 | `commandLayer.fetchVSCodeTasks` | your `tasks.json` tasks |
 | `commandLayer.fetchFrequentActions` | what you run most, in this workspace |
 
-Any command returning an array of actions works — a bare command id
-string, or `{ title, command, args }`. So another extension, or a few
-lines in `utils.js`, can supply a list without changing anything here.
-
-`fetchVSCodeCommands` answers the hardest problem: you can't bind a
-command you've never heard of. Point a filtered group at an extension's
-prefix — `git.`, `python.` — to see what it offers, click one to try it,
-then right-click to **Copy Command Id** or **Copy Action Stub** and
+Any command returning an array of actions works: a bare command id
+string, or `{ title, command, args }`. `fetchVSCodeCommands` answers the
+hardest problem: you can't bind a command you've never heard of. Point a
+filtered group at an extension's prefix (`git.`, `python.`), click one to
+try it, then right-click to **Copy Command Id** or **Copy Action Stub** and
 paste it into your settings.
 
 ## Built-in commands
@@ -480,37 +361,21 @@ Two, for things VS Code exposes only as an API and not as a command:
 
 | Command | Does |
 |---|---|
-| `commandLayer.openExternal` | Hands a URI to the **OS's own handler** — registered protocols (`obsidian://`, `slack://`) and a file's default desktop app |
+| `commandLayer.openExternal` | Hands a URI to the **OS's own handler**: registered protocols (`obsidian://`, `slack://`) and a file's default desktop app |
 | `commandLayer.copyToClipboard` | Copies a string. VS Code's clipboard commands act on the selection; none takes a value |
 
-### Opening things
-
-Three jobs, easy to confuse:
-
-| Goal | Command |
-|---|---|
-| Show a file or folder in Explorer / Finder | `revealFileInOS` |
-| Open a file in VS Code, or a URL in the browser | `vscode.open` |
-| Open a file in its **default desktop app**, or launch a tool by protocol | `commandLayer.openExternal` |
+Opening things, three jobs that are easy to confuse: `revealFileInOS` shows
+a file or folder in Explorer / Finder; `vscode.open` opens a file in VS
+Code, or a URL in the browser; `commandLayer.openExternal` opens a file in
+its **default desktop app**, or launches a tool by protocol.
 
 ## Running shell commands
 
 Command Layer doesn't run processes. VS Code has two native ways, both
-reachable as ordinary commands.
-
-**Tasks**, for anything repeatable — you get `cwd`, environment, problem
-matchers, and `dependsOn` for ordering:
-
-```jsonc
-// tasks.json
-{ "label": "deploy", "dependsOrder": "sequence", "dependsOn": ["build", "test"],
-  "type": "shell", "command": "npm run deploy" }
-
-// settings.json
-{ "command": "workbench.action.tasks.runTask", "args": ["deploy"] }
-```
-
-**`sendSequence`**, for one-offs built from captures:
+reachable as ordinary commands. **Tasks**, for anything repeatable (`cwd`,
+environment, problem matchers, `dependsOn` for ordering), run with
+`workbench.action.tasks.runTask` and the task's label as its argument.
+`workbench.action.terminal.sendSequence`, for one-offs built from captures:
 
 ```jsonc
 { "command": "workbench.action.terminal.sendSequence",
@@ -518,24 +383,14 @@ matchers, and `dependsOn` for ordering:
 ```
 
 `\u000D` is the carriage return that submits the line. It goes to the
-active terminal, so open one first. Ordering belongs in the shell:
-
-```jsonc
-{ "command": "workbench.action.terminal.sendSequence",
-  "args": [["object", { "text": "python plot.py && code plot.png\u000D" }]] }
-```
-
-`&&` guarantees the ordering; `code` opens the result in the running
-window. Note `&&` differs across `cmd`, PowerShell and POSIX shells.
+active terminal, so open one first. Ordering belongs in the shell, and `&&`
+differs across `cmd`, PowerShell and POSIX shells.
 
 ## Optional utilities
 
 `utils.js` ships alongside the extension but isn't part of it. It loads
-only when enabled, and registers nothing otherwise:
-
-```jsonc
-{ "commandLayer.utils.enabled": true }   // requires a reload
-```
+only when `"commandLayer.utils.enabled": true` (requires a reload), and
+registers nothing otherwise:
 
 | Command | Does |
 |---|---|
@@ -543,15 +398,10 @@ only when enabled, and registers nothing otherwise:
 | `commandLayer.util.searchSelectionExact` | Same, matching literally |
 | `commandLayer.util.writeFile` | `[path, content]` |
 
-Conveniences that would otherwise mean installing a separate extension
-for a one-liner. What belongs there: pure functions, or thin wrappers
-over a `vscode.*` API. Not: anything running a shell command, and
-nothing an existing extension already does properly.
-
 ## From outside VS Code
 
-A URI handler lets another program — a launcher, a script, `open` on
-macOS, a link in a Markdown file — run any VS Code command, with arguments,
+A URI handler lets another program (a launcher, a script, `open` on
+macOS, a link in a Markdown file) run any VS Code command, with arguments,
 in the window you used last. It is taken from
 [Command Executor](https://marketplace.visualstudio.com/items?itemName=eliostruyf.execcommand)
 by Elio Struyf: the same URI shape and the same reading of arguments, so
@@ -578,11 +428,10 @@ Code decodes a URI's query once before the handler sees it, so a value
 containing `&`, `+` or a percent sign has to be percent-encoded **twice**;
 anything else needs it once, as in any URL.
 
-Your own global actions are commands too: an entry with an `id` in
-`commandLayer.globalActions` is `commandLayer.action.<id>`, so
-`?command=commandLayer.action.openNotes` runs it. A task is
-`?command=workbench.action.tasks.runTask&args0=build`, the label as **Run
-Task** shows it.
+Your own global actions are commands too: an entry with an `id` is
+`commandLayer.action.<id>`, so `?command=commandLayer.action.openNotes` runs
+it. A task is `?command=workbench.action.tasks.runTask&args0=build`, the
+label as **Run Task** shows it.
 
 **Nothing is checked.** There is no allowlist: any command runs, with any
 arguments, once VS Code's prompt for an extension opening a URI has been
@@ -599,58 +448,28 @@ A request with no `command`, an argument that is not valid in its typed form
 Details**, logged to the **Command Layer** output channel along with every
 URI that ran.
 
-### The macOS launcher's rows
-
-While the extension is installed, the launcher in this repository
-(`extensions/vscodebridge.lua`) offers four rows, each opening one of these
-URIs:
-
-| Row | Sends |
-|---|---|
-| VS Code: Find in files for "…" | `?command=workbench.action.findInFiles&args0={"query":"…","triggerSearch":true}` |
-| VS Code: Go to file "…" | `?command=workbench.action.quickOpen&args0=…` |
-| VS Code: Run task… | `?command=workbench.action.tasks.runTask&args0=<label>` |
-| VS Code: Run command… | `?command=<id>` |
-
-### Examples
-
-Open a folder in a new window. The arguments are `["uri", "/Users/me/my
-project"]` and `{"forceNewWindow": true}`, each JSON encoded once:
+Open a folder in a new window (the arguments are `["uri", "/Users/me/my
+project"]` and `{"forceNewWindow": true}`, each JSON encoded once), and run
+the `build` task:
 
 ```sh
 open 'vscode://saemeon.command-layer?command=vscode.openFolder&args0=%5B%22uri%22%2C%22%2FUsers%2Fme%2Fmy%20project%22%5D&args1=%7B%22forceNewWindow%22%3Atrue%7D'
-```
-
-Open Quick Open with `README` typed in:
-
-```sh
-open 'vscode://saemeon.command-layer?command=workbench.action.quickOpen&args0=README'
-```
-
-Run the `build` task:
-
-```sh
 open 'vscode://saemeon.command-layer?command=workbench.action.tasks.runTask&args0=build'
 ```
 
 As a link in a Markdown file:
-
-```md
-[Build](vscode://saemeon.command-layer?command=workbench.action.tasks.runTask&args0=build)
-```
+`[Build](vscode://saemeon.command-layer?command=workbench.action.tasks.runTask&args0=build)`.
 
 ## Validation
 
 Configuration is checked on startup and whenever settings change. An
 invalid regex, an action with no command, a `textActions` entry with no
-`match`, a duplicate id, a `from` naming a command that doesn't exist —
+`match`, a duplicate id, a `from` naming a command that doesn't exist:
 each produces one consolidated warning with a **Show Details** button
 opening the **Command Layer** output channel. Invalid entries are
 skipped; the rest keep working. Nothing is shown when the configuration
-is clean.
-
-Errors from an action surface as a notification with a **Show Details**
-button; nothing fails silently.
+is clean. Errors from an action surface as a notification with a **Show
+Details** button; nothing fails silently.
 
 ## Cookbook
 
