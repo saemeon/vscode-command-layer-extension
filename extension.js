@@ -847,10 +847,6 @@ async function runAllActions(rawUri, rawAll) {
 
 let globalActionDisposables = [];
 
-// The ids currently registered as commandLayer.action.<id>. This set is
-// the allow-list the URI handler checks against: an action you named in
-// your own settings is one you meant to be reachable.
-const globalActionIds = new Set();
 let extensionContext;
 
 async function runGlobalAction(action) {
@@ -893,7 +889,6 @@ async function runGlobalActionPicker() {
 function registerGlobalActionIds() {
   globalActionDisposables.forEach((d) => d.dispose());
   globalActionDisposables = [];
-  globalActionIds.clear();
 
   const seen = new Set();
   readList('globalActions').forEach((raw) => {
@@ -905,7 +900,6 @@ function registerGlobalActionIds() {
       globalActionDisposables.push(
         vscode.commands.registerCommand(`commandLayer.action.${a.id}`, () => runGlobalAction(a))
       );
-      globalActionIds.add(a.id);
     } catch {
       // id already taken; validateConfig reports it
     }
@@ -1420,74 +1414,48 @@ function guarded(name, fn) {
 // =====================================================================
 // URI HANDLER — reaching these commands from outside VS Code
 //
-//   vscode://saemeon.command-layer?action=<id>
-//   vscode://saemeon.command-layer?command=<id>[&args0=<value>&args1=<value>...]
-//   vscode://saemeon.command-layer?task=<label>
+//   vscode://saemeon.command-layer?command=<id>
+//   vscode://saemeon.command-layer?command=<id>&args=<value>
+//   vscode://saemeon.command-layer?command=<id>&args0=<value>&args1=<value>
 //
-// The shape is Command Executor's (eliostruyf.execcommand). The interface
-// is documented in README.md, "From outside VS Code".
+// The shape, and the reading of arguments, are Command Executor's
+// (eliostruyf.execcommand). The interface is documented in README.md,
+// "From outside VS Code".
 //
-// Any local application and any web page that can open a URL reaches
-// this handler, so nothing runs unless a setting names it, and args are
-// passed as data: no ${...} is substituted, since ${command:...} would
-// run a command the allowlist never saw.
+// Nothing is checked: any command runs, with any arguments, once VS Code's
+// own prompt for an extension opening a URI has been accepted. Args are
+// data all the same: no ${...} is substituted.
 // =====================================================================
 
-const URI_KINDS = ['action', 'command', 'task'];
-const URI_ARG_KEY = /^args(0|[1-9]\d*)$/;
-const MAX_URI_QUERY = 64 * 1024;
+const URI_ARG_KEY = /^args(\d+)$/;
+const MAX_URI_ARG_INDEX = 63;
 
-// Refused whatever the allowlist says. Each takes, as an argument, other
-// command ids, a task, or text a shell runs — so allowlisting one would
-// reach past the allowlist. commandLayer.* is refused as a prefix for the
-// same reason: its dispatchers run actions they are handed.
-const NEVER_FROM_URI = new Set([
-  'runCommands',
-  'workbench.action.tasks.runTask',
-  'workbench.action.terminal.sendSequence',
-  'workbench.action.terminal.new',
-  'workbench.action.terminal.newWithCwd',
-  'workbench.action.terminal.newWithProfile',
-  'workbench.action.createTerminalEditor',
-]);
-
-function uriSettings() {
-  const cfg = vscode.workspace.getConfiguration('commandLayer');
-  const list = (key) => {
-    const value = cfg.get(key, []);
-    return Array.isArray(value) ? value.filter((v) => typeof v === 'string') : [];
-  };
-  return {
-    allowedCommands: list('uriHandler.allowedCommands'),
-    allowedTasks: list('uriHandler.allowedTasks'),
-    allowAnyCommand: cfg.get('uriHandler.allowAnyCommand', false) === true,
-  };
+// A value is its JSON when it parses (42, true, null, {"query": "x"},
+// ["uri", "/path"]) and its text otherwise; quote a string that would parse
+// ("42") to keep it one. VS Code percent-decodes the query once before the
+// handler sees it, so a value containing &, + or % only survives encoded
+// twice.
+function uriValue(text) {
+  try {
+    return literalArg(JSON.parse(text));
+  } catch (err) {
+    if (err instanceof UriError) throw err;
+    return text;
+  }
 }
 
-// Each ?argsN= is one argument, its JSON when it parses (42, true, null,
-// {"query": "x"}, ["uri", "/path"]) and its text otherwise. Quote a string
-// that would parse ("42") to keep it one. VS Code percent-decodes the query
-// once before the handler sees it, so a value containing &, + or % only
-// survives encoded twice.
+// ?args= is one argument; ?args0=, ?args1=, … are the arguments in order,
+// and an index left out is undefined, which is how one is skipped.
 function uriArgs(params) {
-  const indexes = [...new Set(params.keys())]
-    .map((key) => URI_ARG_KEY.exec(key))
-    .filter(Boolean)
-    .map((match) => Number(match[1]))
-    .sort((a, b) => a - b);
-  indexes.forEach((n, i) => {
-    if (n !== i) throw new UriRefusal(`?args${i}= is missing, and arguments are in order from ?args0=`);
-  });
-  return indexes.map((n) => {
-    const text = params.get(`args${n}`);
-    let value = text;
-    try {
-      value = JSON.parse(text);
-    } catch {
-      // not JSON: the text itself is the argument
-    }
-    return literalArg(value);
-  });
+  const one = params.get('args');
+  if (one !== null) return [uriValue(one)];
+  const args = [];
+  for (const [key, value] of params) {
+    const match = URI_ARG_KEY.exec(key);
+    if (!match || Number(match[1]) > MAX_URI_ARG_INDEX) continue;
+    args[Number(match[1])] = uriValue(value);
+  }
+  return args;
 }
 
 // The typed forms of settings' `args`, with nothing substituted.
@@ -1496,15 +1464,15 @@ function literalArg(node) {
     const [type, value] = node;
     switch (type) {
       case 'uri':
-        if (typeof value !== 'string' || !value) throw new UriRefusal('["uri", ...] needs a string');
+        if (typeof value !== 'string' || !value) throw new UriError('["uri", ...] needs a string');
         return looksLikeUri(value) ? vscode.Uri.parse(value) : vscode.Uri.file(value);
       case 'object':
         if (typeof value !== 'string') return literalArg(value);
         try {
           return literalArg(JSON.parse(value));
         } catch (err) {
-          if (err instanceof UriRefusal) throw err;
-          throw new UriRefusal(`["object", ...] is not valid JSON — ${err.message}`);
+          if (err instanceof UriError) throw err;
+          throw new UriError(`["object", ...] is not valid JSON — ${err.message}`);
         }
       case 'number':
         return Number(value);
@@ -1524,94 +1492,15 @@ function literalArg(node) {
   return node;
 }
 
-class UriRefusal extends Error {}
-
-function commandRefusal(id, hasArgs, settings) {
-  if (id.startsWith('_') || id.startsWith('commandLayer.') || NEVER_FROM_URI.has(id)) {
-    return id.startsWith('commandLayer.action.')
-      ? `"${id}" is reached as ?action=${id.slice('commandLayer.action.'.length)}`
-      : `"${id}" is never run from a URI`;
-  }
-  if (settings.allowedCommands.includes(id)) return undefined;
-  if (settings.allowAnyCommand && !hasArgs) return undefined;
-  if (settings.allowAnyCommand) {
-    return `"${id}" is not in commandLayer.uriHandler.allowedCommands, which arguments need`;
-  }
-  return `"${id}" is not in commandLayer.uriHandler.allowedCommands`;
-}
-
-async function findTask(label) {
-  const tasks = await vscode.tasks.fetchTasks();
-  const named = tasks.filter((t) => t.name === label || `${t.source}: ${t.name}` === label);
-  // tasks.json before a provider's task of the same name, as the Run Task
-  // picker lists them.
-  const fromFile = named.filter((t) => t.source === 'Workspace');
-  const found = fromFile.length > 0 ? fromFile : named;
-  if (found.length === 0) throw new UriRefusal(`no task "${label}" in this window`);
-  if (found.length > 1) {
-    const where = found.map((t) => t.scope?.name || t.source).join(', ');
-    throw new UriRefusal(`task "${label}" is ambiguous here (${where})`);
-  }
-  return found[0];
-}
+class UriError extends Error {}
 
 async function dispatchUri(uri) {
-  if ((uri.path || '').replace(/\/+$/, '') !== '') {
-    throw new UriRefusal(`unknown path "${uri.path}" — the handler takes no path`);
-  }
-  if ((uri.query || '').length > MAX_URI_QUERY) throw new UriRefusal('the query is too long');
-
   const params = new URLSearchParams(uri.query || '');
-  for (const key of new Set(params.keys())) {
-    if (URI_KINDS.includes(key) || URI_ARG_KEY.test(key)) continue;
-    if (key === 'args') {
-      throw new UriRefusal('?args= is not taken: give each argument as ?args0=, ?args1=, …');
-    }
-    throw new UriRefusal(`unknown parameter ?${key}=`);
-  }
-  for (const key of new Set(params.keys())) {
-    if (params.getAll(key).length > 1) throw new UriRefusal(`?${key}= is given more than once`);
-  }
-  const kinds = URI_KINDS.filter((k) => params.has(k));
-  if (kinds.length !== 1) {
-    throw new UriRefusal('a URI names exactly one of ?action=, ?command= or ?task=');
-  }
-  const kind = kinds[0];
-  const name = (params.get(kind) || '').trim();
-  if (!name) throw new UriRefusal(`?${kind}= is empty`);
+  const command = (params.get('command') || '').trim();
+  if (!command) throw new UriError('?command= is missing');
   const args = uriArgs(params);
-  if (args.length > 0 && kind !== 'command') {
-    throw new UriRefusal('?args0= and the rest are only taken with ?command=');
-  }
-
-  const settings = uriSettings();
-
-  if (kind === 'action') {
-    if (!globalActionIds.has(name)) {
-      throw new UriRefusal(`no global action with id "${name}" in commandLayer.globalActions`);
-    }
-    log('Info', `[uri] action ${name}`);
-    await vscode.commands.executeCommand(`commandLayer.action.${name}`);
-    return;
-  }
-
-  if (kind === 'command') {
-    const refusal = commandRefusal(name, args.length > 0, settings);
-    if (refusal) throw new UriRefusal(refusal);
-    log('Info', `[uri] command ${name} ${args.length === 0 ? '' : JSON.stringify(args)}`);
-    await vscode.commands.executeCommand(name, ...args);
-    return;
-  }
-
-  if (!settings.allowedTasks.includes(name)) {
-    throw new UriRefusal(`task "${name}" is not in commandLayer.uriHandler.allowedTasks`);
-  }
-  if (vscode.workspace.isTrusted === false) {
-    throw new UriRefusal('tasks do not run from a URI in an untrusted workspace');
-  }
-  const task = await findTask(name);
-  log('Info', `[uri] task ${name}`);
-  await vscode.tasks.executeTask(task);
+  log('Info', `[uri] command ${command} ${args.length === 0 ? '' : JSON.stringify(args)}`);
+  await vscode.commands.executeCommand(command, ...args);
 }
 
 class ActionUriHandler {
@@ -1619,11 +1508,8 @@ class ActionUriHandler {
     try {
       await dispatchUri(uri);
     } catch (err) {
-      const refused = err instanceof UriRefusal;
-      const message = refused
-        ? `refused ?${uri.query || ''} — ${err.message}`
-        : `URI ?${uri.query || ''} failed — ${err && err.message ? err.message : err}`;
-      log('Error', `[uri] ${refused ? message : (err && err.stack) || message}`);
+      const message = `URI ?${uri.query || ''} failed — ${err && err.message ? err.message : err}`;
+      log('Error', `[uri] ${err instanceof UriError ? message : (err && err.stack) || message}`);
       vscode.window
         .showErrorMessage(`Command Layer: ${message}`, 'Show Details')
         .then((choice) => {
