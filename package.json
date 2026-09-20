@@ -1,0 +1,1179 @@
+{
+  "name": "command-layer",
+  "displayName": "Command Layer",
+  "description": "A pluggable command layer for VS Code: trigger any command from anywhere — matched text, selections, files, terminal output, status bar — configured entirely in settings.",
+  "icon": "icon.png",
+  "version": "1.0.0",
+  "publisher": "local",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "*",
+    "onUri"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "commandLayer.runAllActions",
+        "title": "Command Layer: All Actions..."
+      },
+      {
+        "command": "commandLayer.runTextActions",
+        "title": "Command Layer: Text Actions..."
+      },
+      {
+        "command": "commandLayer.runFileActions",
+        "title": "Command Layer: File Actions..."
+      },
+      {
+        "command": "commandLayer.runSelectionActions",
+        "title": "Command Layer: Selection Actions..."
+      },
+      {
+        "command": "commandLayer.runGlobalActions",
+        "title": "Command Layer: Global Actions..."
+      },
+      {
+        "command": "commandLayer.openExternal",
+        "title": "Open Externally",
+        "category": "Command Layer"
+      },
+      {
+        "command": "commandLayer.copyToClipboard",
+        "title": "Copy To Clipboard",
+        "category": "Command Layer"
+      },
+      {
+        "command": "commandLayer.copyCommandId",
+        "title": "Copy Command Id"
+      },
+      {
+        "command": "commandLayer.copyActionStub",
+        "title": "Copy Action Stub"
+      },
+      {
+        "command": "commandLayer.refreshViews",
+        "title": "Refresh Views",
+        "icon": "$(refresh)",
+        "category": "Command Layer"
+      },
+      {
+        "command": "commandLayer.util.searchSelection",
+        "title": "Search Selection Ignoring Whitespace (util)",
+        "category": "Command Layer"
+      },
+      {
+        "command": "commandLayer.util.searchSelectionExact",
+        "title": "Search Selection Exactly (util)",
+        "category": "Command Layer"
+      },
+      {
+        "command": "commandLayer.util.writeFile",
+        "title": "Write File (util)",
+        "category": "Command Layer"
+      },
+      {
+        "command": "commandLayer.runEditorTitleAction",
+        "title": "Run Editor Title Action",
+        "category": "Command Layer",
+        "icon": "$(zap)"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "commandLayer.runAllActions",
+          "when": "editorTextFocus",
+          "group": "navigation@1"
+        },
+        {
+          "command": "commandLayer.runTextActions",
+          "when": "editorTextFocus && commandLayer.hasMatch",
+          "group": "commandLayer@1"
+        },
+        {
+          "command": "commandLayer.runSelectionActions",
+          "when": "editorTextFocus && editorHasSelection",
+          "group": "commandLayer@2"
+        },
+        {
+          "command": "commandLayer.runFileActions",
+          "when": "editorTextFocus",
+          "group": "commandLayer@3"
+        },
+        {
+          "command": "commandLayer.runGlobalActions",
+          "when": "editorTextFocus",
+          "group": "commandLayer@4"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "commandLayer.runAllActions",
+          "when": "resourceScheme == file",
+          "group": "navigation@1"
+        },
+        {
+          "command": "commandLayer.runFileActions",
+          "when": "resourceScheme == file",
+          "group": "commandLayer@1"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "commandLayer.runEditorTitleAction",
+          "when": "commandLayer.hasEditorTitleAction",
+          "group": "navigation"
+        }
+      ],
+      "editor/title/context": [
+        {
+          "command": "commandLayer.runFileActions",
+          "group": "commandLayer"
+        }
+      ],
+      "scm/resourceState/context": [
+        {
+          "command": "commandLayer.runFileActions",
+          "group": "commandLayer"
+        }
+      ],
+      "terminal/context": [
+        {
+          "command": "commandLayer.runGlobalActions",
+          "group": "commandLayer"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "commandLayer.refreshViews",
+          "when": "view == commandLayer.explorerView",
+          "group": "navigation"
+        },
+        {
+          "command": "commandLayer.refreshViews",
+          "when": "view == commandLayer.activityBarView",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "commandLayer.copyCommandId",
+          "when": "viewItem == commandLayerAction",
+          "group": "commandLayer@1"
+        },
+        {
+          "command": "commandLayer.copyActionStub",
+          "when": "viewItem == commandLayerAction",
+          "group": "commandLayer@2"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Command Layer",
+      "properties": {
+        "commandLayer.textActions": {
+          "type": "array",
+          "default": [],
+          "description": "Offered when a pattern matches in document text. Each entry is a regex plus actions.",
+          "items": {
+            "type": "object",
+            "required": [
+              "match",
+              "actions"
+            ],
+            "properties": {
+              "match": {
+                "type": "string",
+                "description": "Regex source. Capture groups become $1, $2, ... in args; $0 is the whole match."
+              },
+              "flags": {
+                "type": "string",
+                "default": "g",
+                "description": "Regex flags."
+              },
+              "when": {
+                "type": "object",
+                "description": "Optional conditions, all of which must pass.",
+                "properties": {
+                  "language": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "include": {
+                    "type": [
+                      "string",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "exclude": {
+                    "type": [
+                      "string",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "env": {
+                    "type": "object"
+                  },
+                  "config": {
+                    "type": "object"
+                  }
+                }
+              },
+              "show": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "link",
+                    "codeLens",
+                    "codeAction",
+                    "hover",
+                    "decoration"
+                  ]
+                },
+                "description": "Which surfaces this entry's matches appear on, overriding commandLayer.defaults.surfaces. [] means it appears nowhere."
+              },
+              "decoration": {
+                "type": "object",
+                "description": "Inline style when shown on the \"decoration\" surface. Any VS Code DecorationRenderOptions field."
+              },
+              "actions": {
+                "type": "array",
+                "description": "One action runs directly; several show a picker. A bare command id string is shorthand for { \"command\": \"...\" }.",
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "title": {
+                          "type": "string",
+                          "description": "Label shown in pickers, CodeLens, hovers and menus."
+                        },
+                        "command": {
+                          "type": "string",
+                          "description": "Any VS Code command id."
+                        },
+                        "args": {
+                          "type": "array",
+                          "description": "Arguments, in order. A plain string is a template with $N (capture groups) and ${varName} substitution. Typed forms: [\"uri\", tpl], [\"object\", tpl] (a structure, preferred, or a string that gets parsed), [\"regex\", tpl], [\"number\", tpl], [\"boolean\", tpl]. Typed args compose inside a structure."
+                        },
+                        "when": {
+                          "type": "object",
+                          "description": "Optional conditions, all of which must pass.",
+                          "properties": {
+                            "language": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "include": {
+                              "type": [
+                                "string",
+                                "array"
+                              ],
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "exclude": {
+                              "type": [
+                                "string",
+                                "array"
+                              ],
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "env": {
+                              "type": "object"
+                            },
+                            "config": {
+                              "type": "object"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "commandLayer.terminalActions": {
+          "type": "array",
+          "default": [],
+          "description": "Offered when a pattern matches a line of terminal output. Terminal output has no document, so \"when\": { \"language\": ... } never matches here.",
+          "items": {
+            "type": "object",
+            "required": [
+              "match",
+              "actions"
+            ],
+            "properties": {
+              "match": {
+                "type": "string",
+                "description": "Regex source. Capture groups become $1, $2, ... in args; $0 is the whole match."
+              },
+              "flags": {
+                "type": "string",
+                "default": "g",
+                "description": "Regex flags."
+              },
+              "when": {
+                "type": "object",
+                "description": "Optional conditions, all of which must pass.",
+                "properties": {
+                  "language": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "include": {
+                    "type": [
+                      "string",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "exclude": {
+                    "type": [
+                      "string",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "env": {
+                    "type": "object"
+                  },
+                  "config": {
+                    "type": "object"
+                  }
+                }
+              },
+              "actions": {
+                "type": "array",
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "title": {
+                          "type": "string",
+                          "description": "Label shown in pickers, CodeLens, hovers and menus."
+                        },
+                        "command": {
+                          "type": "string",
+                          "description": "Any VS Code command id."
+                        },
+                        "args": {
+                          "type": "array",
+                          "description": "Arguments, in order. A plain string is a template with $N (capture groups) and ${varName} substitution. Typed forms: [\"uri\", tpl], [\"object\", tpl] (a structure, preferred, or a string that gets parsed), [\"regex\", tpl], [\"number\", tpl], [\"boolean\", tpl]. Typed args compose inside a structure."
+                        },
+                        "when": {
+                          "type": "object",
+                          "description": "Optional conditions, all of which must pass.",
+                          "properties": {
+                            "language": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "include": {
+                              "type": [
+                                "string",
+                                "array"
+                              ],
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "exclude": {
+                              "type": [
+                                "string",
+                                "array"
+                              ],
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "env": {
+                              "type": "object"
+                            },
+                            "config": {
+                              "type": "object"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "commandLayer.fileActions": {
+          "type": "array",
+          "default": [],
+          "description": "Offered whenever a file or folder is the target — Explorer, editor, tab, Source Control panel, tab-bar button. Add \"match\" to narrow an entry to paths matching a pattern.",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "description": "Label shown in pickers, CodeLens, hovers and menus."
+                  },
+                  "command": {
+                    "type": "string",
+                    "description": "Any VS Code command id."
+                  },
+                  "args": {
+                    "type": "array",
+                    "description": "Arguments, in order. A plain string is a template with $N (capture groups) and ${varName} substitution. Typed forms: [\"uri\", tpl], [\"object\", tpl] (a structure, preferred, or a string that gets parsed), [\"regex\", tpl], [\"number\", tpl], [\"boolean\", tpl]. Typed args compose inside a structure."
+                  },
+                  "when": {
+                    "type": "object",
+                    "description": "Optional conditions, all of which must pass.",
+                    "properties": {
+                      "language": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "include": {
+                        "type": [
+                          "string",
+                          "array"
+                        ],
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "exclude": {
+                        "type": [
+                          "string",
+                          "array"
+                        ],
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "env": {
+                        "type": "object"
+                      },
+                      "config": {
+                        "type": "object"
+                      }
+                    }
+                  },
+                  "match": {
+                    "type": "string",
+                    "description": "Optional. Only offer this entry when the file's path matches; capture groups become $1, $2, ..."
+                  },
+                  "flags": {
+                    "type": "string",
+                    "default": "g",
+                    "description": "Regex flags."
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "commandLayer.selectionActions": {
+          "type": "array",
+          "default": [],
+          "description": "Offered whenever there is a selection. Add \"match\" to narrow an entry to selections matching a pattern; such entries run once per selection.",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "description": "Label shown in pickers, CodeLens, hovers and menus."
+                  },
+                  "command": {
+                    "type": "string",
+                    "description": "Any VS Code command id."
+                  },
+                  "args": {
+                    "type": "array",
+                    "description": "Arguments, in order. A plain string is a template with $N (capture groups) and ${varName} substitution. Typed forms: [\"uri\", tpl], [\"object\", tpl] (a structure, preferred, or a string that gets parsed), [\"regex\", tpl], [\"number\", tpl], [\"boolean\", tpl]. Typed args compose inside a structure."
+                  },
+                  "when": {
+                    "type": "object",
+                    "description": "Optional conditions, all of which must pass.",
+                    "properties": {
+                      "language": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "include": {
+                        "type": [
+                          "string",
+                          "array"
+                        ],
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "exclude": {
+                        "type": [
+                          "string",
+                          "array"
+                        ],
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "env": {
+                        "type": "object"
+                      },
+                      "config": {
+                        "type": "object"
+                      }
+                    }
+                  },
+                  "match": {
+                    "type": "string",
+                    "description": "Optional. Only offer this entry when the selected text matches; capture groups become $1, $2, ..."
+                  },
+                  "flags": {
+                    "type": "string",
+                    "default": "g",
+                    "description": "Regex flags."
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "commandLayer.globalActions": {
+          "type": "array",
+          "default": [],
+          "description": "Invoked by name — from the Command Palette, a view, or a keybinding.",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "description": "Label shown in pickers, CodeLens, hovers and menus."
+                  },
+                  "command": {
+                    "type": "string",
+                    "description": "Any VS Code command id."
+                  },
+                  "args": {
+                    "type": "array",
+                    "description": "Arguments, in order. A plain string is a template with $N (capture groups) and ${varName} substitution. Typed forms: [\"uri\", tpl], [\"object\", tpl] (a structure, preferred, or a string that gets parsed), [\"regex\", tpl], [\"number\", tpl], [\"boolean\", tpl]. Typed args compose inside a structure."
+                  },
+                  "when": {
+                    "type": "object",
+                    "description": "Optional conditions, all of which must pass.",
+                    "properties": {
+                      "language": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "include": {
+                        "type": [
+                          "string",
+                          "array"
+                        ],
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "exclude": {
+                        "type": [
+                          "string",
+                          "array"
+                        ],
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "env": {
+                        "type": "object"
+                      },
+                      "config": {
+                        "type": "object"
+                      }
+                    }
+                  },
+                  "id": {
+                    "type": "string",
+                    "description": "Optional. Registers this entry as commandLayer.action.<id> so a keybinding can target it directly."
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "commandLayer.statusBarActions": {
+          "type": "array",
+          "default": [],
+          "description": "Always-visible status bar buttons. An entry either runs one command or, given \"actions\", opens a picker.",
+          "items": {
+            "type": "object",
+            "required": [
+              "text"
+            ],
+            "properties": {
+              "title": {
+                "type": "string",
+                "description": "Label shown in pickers, CodeLens, hovers and menus."
+              },
+              "command": {
+                "type": "string",
+                "description": "Any VS Code command id."
+              },
+              "args": {
+                "type": "array",
+                "description": "Arguments, in order. A plain string is a template with $N (capture groups) and ${varName} substitution. Typed forms: [\"uri\", tpl], [\"object\", tpl] (a structure, preferred, or a string that gets parsed), [\"regex\", tpl], [\"number\", tpl], [\"boolean\", tpl]. Typed args compose inside a structure."
+              },
+              "when": {
+                "type": "object",
+                "description": "Optional conditions, all of which must pass.",
+                "properties": {
+                  "language": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "include": {
+                    "type": [
+                      "string",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "exclude": {
+                    "type": [
+                      "string",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "env": {
+                    "type": "object"
+                  },
+                  "config": {
+                    "type": "object"
+                  }
+                }
+              },
+              "text": {
+                "type": "string",
+                "description": "Button label. Supports codicons, e.g. \"$(rocket) Deploy\"."
+              },
+              "tooltip": {
+                "type": "string"
+              },
+              "alignment": {
+                "type": "string",
+                "enum": [
+                  "left",
+                  "right"
+                ],
+                "default": "right"
+              },
+              "priority": {
+                "type": "number",
+                "description": "Higher sorts further left within its alignment."
+              },
+              "detail": {
+                "type": "string",
+                "description": "Secondary text shown beside this entry in a picker."
+              },
+              "actions": {
+                "type": "array",
+                "description": "Turns this button into a menu.",
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "title": {
+                          "type": "string",
+                          "description": "Label shown in pickers, CodeLens, hovers and menus."
+                        },
+                        "command": {
+                          "type": "string",
+                          "description": "Any VS Code command id."
+                        },
+                        "args": {
+                          "type": "array",
+                          "description": "Arguments, in order. A plain string is a template with $N (capture groups) and ${varName} substitution. Typed forms: [\"uri\", tpl], [\"object\", tpl] (a structure, preferred, or a string that gets parsed), [\"regex\", tpl], [\"number\", tpl], [\"boolean\", tpl]. Typed args compose inside a structure."
+                        },
+                        "when": {
+                          "type": "object",
+                          "description": "Optional conditions, all of which must pass.",
+                          "properties": {
+                            "language": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "include": {
+                              "type": [
+                                "string",
+                                "array"
+                              ],
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "exclude": {
+                              "type": [
+                                "string",
+                                "array"
+                              ],
+                              "items": {
+                                "type": "string"
+                              }
+                            },
+                            "env": {
+                              "type": "object"
+                            },
+                            "config": {
+                              "type": "object"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "commandLayer.eventActions": {
+          "type": "array",
+          "default": [],
+          "description": "The only actions that run without you initiating them. Every firing is logged to the Command Layer output channel.",
+          "items": {
+            "type": "object",
+            "required": [
+              "on"
+            ],
+            "properties": {
+              "title": {
+                "type": "string",
+                "description": "Label shown in pickers, CodeLens, hovers and menus."
+              },
+              "command": {
+                "type": "string",
+                "description": "Any VS Code command id."
+              },
+              "args": {
+                "type": "array",
+                "description": "Arguments, in order. A plain string is a template with $N (capture groups) and ${varName} substitution. Typed forms: [\"uri\", tpl], [\"object\", tpl] (a structure, preferred, or a string that gets parsed), [\"regex\", tpl], [\"number\", tpl], [\"boolean\", tpl]. Typed args compose inside a structure."
+              },
+              "when": {
+                "type": "object",
+                "description": "Optional conditions, all of which must pass.",
+                "properties": {
+                  "language": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "include": {
+                    "type": [
+                      "string",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "exclude": {
+                    "type": [
+                      "string",
+                      "array"
+                    ],
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "env": {
+                    "type": "object"
+                  },
+                  "config": {
+                    "type": "object"
+                  }
+                }
+              },
+              "on": {
+                "type": "string",
+                "enum": [
+                  "workspaceOpen",
+                  "fileSave"
+                ],
+                "description": "Which editor event fires this."
+              },
+              "confirm": {
+                "type": "boolean",
+                "default": false,
+                "description": "Ask before running. Off by default."
+              }
+            }
+          }
+        },
+        "commandLayer.explorerView": {
+          "type": "array",
+          "default": [],
+          "description": "Contents of the Command Layer panel in the Explorer sidebar. A list of nodes. A node is a leaf (has \"command\", or is a bare command id), a group (\"title\" plus \"children\" to nest, or \"title\" plus \"from\" to fill it), or a fragment (\"from\" with no \"title\", whose entries splice into the parent). \"filter\" (on the visible label), \"limit\" and \"when\" apply to any node.",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "description": "Label shown in pickers, CodeLens, hovers and menus."
+                  },
+                  "command": {
+                    "type": "string",
+                    "description": "Any VS Code command id."
+                  },
+                  "args": {
+                    "type": "array",
+                    "description": "Arguments, in order. A plain string is a template with $N (capture groups) and ${varName} substitution. Typed forms: [\"uri\", tpl], [\"object\", tpl] (a structure, preferred, or a string that gets parsed), [\"regex\", tpl], [\"number\", tpl], [\"boolean\", tpl]. Typed args compose inside a structure."
+                  },
+                  "when": {
+                    "type": "object",
+                    "description": "Optional conditions, all of which must pass.",
+                    "properties": {
+                      "language": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "include": {
+                        "type": [
+                          "string",
+                          "array"
+                        ],
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "exclude": {
+                        "type": [
+                          "string",
+                          "array"
+                        ],
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "env": {
+                        "type": "object"
+                      },
+                      "config": {
+                        "type": "object"
+                      }
+                    }
+                  },
+                  "from": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "commandLayer.fetchGlobalActions",
+                          "commandLayer.fetchFileActions",
+                          "commandLayer.fetchSelectionActions",
+                          "commandLayer.fetchTextActions",
+                          "commandLayer.fetchTerminalActions",
+                          "commandLayer.fetchVSCodeCommands",
+                          "commandLayer.fetchVSCodeTasks",
+                          "commandLayer.fetchFrequentActions"
+                        ]
+                      },
+                      {
+                        "type": "string"
+                      }
+                    ],
+                    "description": "A command id returning a list of actions. The listed ones ship with Command Layer; any command returning an array of actions works."
+                  },
+                  "children": {
+                    "type": "array",
+                    "description": "Nested nodes."
+                  },
+                  "filter": {
+                    "type": "string",
+                    "description": "Keep only entries whose visible label contains this, case-insensitive."
+                  },
+                  "limit": {
+                    "type": "number",
+                    "description": "Maximum entries shown."
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "commandLayer.activityBarView": {
+          "type": "array",
+          "default": [],
+          "description": "Contents of the Command Layer panel in its own Activity Bar container. A list of nodes. A node is a leaf (has \"command\", or is a bare command id), a group (\"title\" plus \"children\" to nest, or \"title\" plus \"from\" to fill it), or a fragment (\"from\" with no \"title\", whose entries splice into the parent). \"filter\" (on the visible label), \"limit\" and \"when\" apply to any node.",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "description": "Label shown in pickers, CodeLens, hovers and menus."
+                  },
+                  "command": {
+                    "type": "string",
+                    "description": "Any VS Code command id."
+                  },
+                  "args": {
+                    "type": "array",
+                    "description": "Arguments, in order. A plain string is a template with $N (capture groups) and ${varName} substitution. Typed forms: [\"uri\", tpl], [\"object\", tpl] (a structure, preferred, or a string that gets parsed), [\"regex\", tpl], [\"number\", tpl], [\"boolean\", tpl]. Typed args compose inside a structure."
+                  },
+                  "when": {
+                    "type": "object",
+                    "description": "Optional conditions, all of which must pass.",
+                    "properties": {
+                      "language": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "include": {
+                        "type": [
+                          "string",
+                          "array"
+                        ],
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "exclude": {
+                        "type": [
+                          "string",
+                          "array"
+                        ],
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "env": {
+                        "type": "object"
+                      },
+                      "config": {
+                        "type": "object"
+                      }
+                    }
+                  },
+                  "from": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "commandLayer.fetchGlobalActions",
+                          "commandLayer.fetchFileActions",
+                          "commandLayer.fetchSelectionActions",
+                          "commandLayer.fetchTextActions",
+                          "commandLayer.fetchTerminalActions",
+                          "commandLayer.fetchVSCodeCommands",
+                          "commandLayer.fetchVSCodeTasks",
+                          "commandLayer.fetchFrequentActions"
+                        ]
+                      },
+                      {
+                        "type": "string"
+                      }
+                    ],
+                    "description": "A command id returning a list of actions. The listed ones ship with Command Layer; any command returning an array of actions works."
+                  },
+                  "children": {
+                    "type": "array",
+                    "description": "Nested nodes."
+                  },
+                  "filter": {
+                    "type": "string",
+                    "description": "Keep only entries whose visible label contains this, case-insensitive."
+                  },
+                  "limit": {
+                    "type": "number",
+                    "description": "Maximum entries shown."
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "commandLayer.defaults.surfaces": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "link",
+              "codeLens",
+              "codeAction",
+              "hover",
+              "decoration"
+            ]
+          },
+          "default": [
+            "link",
+            "codeLens",
+            "codeAction",
+            "hover"
+          ],
+          "description": "Which surfaces a textActions entry appears on when it has no \"show\". \"decoration\" is omitted by default because highlighting every match is intrusive."
+        },
+        "commandLayer.defaults.decorationStyle": {
+          "type": "object",
+          "default": {
+            "textDecoration": "underline dotted"
+          },
+          "description": "Inline style for decorated matches. Any VS Code DecorationRenderOptions field."
+        },
+        "commandLayer.utils.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Load the optional utility commands (commandLayer.util.*). Conveniences, not part of the core extension. Requires a reload."
+        },
+        "commandLayer.editorTitleAction": {
+          "type": "object",
+          "default": {},
+          "description": "The action behind the button in the editor tab bar. Empty by default, so no button appears. Set a \"command\" — often one of the pickers, e.g. commandLayer.runAllActions — plus optional \"args\" and \"tooltip\".",
+          "properties": {
+            "command": {
+              "type": "string",
+              "description": "Any VS Code command id."
+            },
+            "args": {
+              "type": "array"
+            },
+            "tooltip": {
+              "type": "string"
+            },
+            "when": {
+              "type": "object"
+            }
+          }
+        },
+        "commandLayer.uriHandler.allowedCommands": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "markdownDescription": "Command ids `vscode://local.command-layer/run?command=<id>` may run, with or without `&args=<json array>`. Exact ids, no patterns. Empty by default, so nothing runs.\n\nThe URI handler is reachable by any local application and by any web page that can open a URL: list only commands you would be happy for any of them to run with arguments of their choosing. `runCommands`, the terminal-creating and `sendSequence` commands, `workbench.action.tasks.runTask`, ids starting with `_` and `commandLayer.*` are refused even when listed."
+        },
+        "commandLayer.uriHandler.allowedTasks": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "markdownDescription": "Task labels `vscode://local.command-layer/run?task=<label>` may run, as the Run Task picker names them (`build`, or `npm: build` for a detected task). Exact labels. Empty by default. Never in an untrusted workspace."
+        },
+        "commandLayer.uriHandler.allowAnyCommand": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Let `vscode://local.command-layer/run?command=<id>` run **any** VS Code command **without arguments**.\n\nOff by default. The URI handler is reachable by any local application and by any web page that can open a URL, so an open handler is a real hole — that is the shape of the argument-injection bugs found in VS Code's own git handler. `&args=` still needs the id in `commandLayer.uriHandler.allowedCommands`.\n\nPrefer `commandLayer.uriHandler.allowedCommands`, or `?action=<id>`: give the entry an `id` in `commandLayer.globalActions` and only that entry becomes reachable."
+        }
+      }
+    },
+    "views": {
+      "explorer": [
+        {
+          "id": "commandLayer.explorerView",
+          "name": "Command Layer",
+          "when": "commandLayer.hasExplorerView"
+        }
+      ],
+      "commandLayerContainer": [
+        {
+          "id": "commandLayer.activityBarView",
+          "name": "Commands",
+          "when": "commandLayer.hasActivityBarView"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "commandLayerContainer",
+          "title": "Command Layer",
+          "icon": "icon.svg"
+        }
+      ]
+    }
+  }
+}

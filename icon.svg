@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- Activity bar icons are masked to one theme colour, so this is
+       line art with plenty of transparent space: a dense filled shape
+       reads as a solid blob. Stroked, not filled, like VS Code's own. -->
+  <g fill="none" stroke="currentColor" stroke-width="1.6"
+     stroke-linejoin="round" stroke-linecap="round">
+    <path d="M12 3 21 7.5 12 12 3 7.5 Z"/>
+    <path d="M3 12 12 16.5 21 12"/>
+    <path d="M3 16.5 12 21 21 16.5"/>
+  </g>
+</svg>
