@@ -33,7 +33,7 @@ and quit and reopen VS Code once. Removing the link uninstalls it, and the
 link's name changes with the version.
 
 ```sh
-ln -s "$PWD" ~/.vscode/extensions/saemeon.command-layer-0.1.1
+ln -s "$PWD" ~/.vscode/extensions/saemeon.command-layer-0.1.2
 ```
 
 Either way `code --list-extensions` lists `saemeon.command-layer`. Editors
@@ -44,7 +44,7 @@ take the same link there.
 
 ```sh
 npx @vscode/vsce package
-code --install-extension command-layer-0.1.1.vsix
+code --install-extension command-layer-0.1.2.vsix
 ```
 
 `vsce ls` lists what goes in the package; `.vscodeignore` decides. VS Code
