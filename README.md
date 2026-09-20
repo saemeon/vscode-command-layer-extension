@@ -73,13 +73,13 @@ edit applies on the next **Developer: Reload Window**:
 
 ```sh
 git clone https://github.com/saemeon/vscode-command-layer-extension.git
-ln -s "$PWD/vscode-command-layer-extension" ~/.vscode/extensions/saemeon.command-layer-1.0.0
+ln -s "$PWD/vscode-command-layer-extension" ~/.vscode/extensions/saemeon.command-layer-0.1.0
 ```
 
 Then quit and reopen VS Code; `code --list-extensions` lists
 `saemeon.command-layer`. Removing the link uninstalls it. A `.vsix` from
 `npx @vscode/vsce package`, installed with `code --install-extension
-command-layer-1.0.0.vsix`, lands in the same folder name, as a copy.
+command-layer-0.1.0.vsix`, lands in the same folder name, as a copy.
 **Developer: Install Extension from Location...** works too, but where VS
 Code then keeps it is its business.
 
@@ -742,3 +742,16 @@ other files.
   ]}
 ]
 ```
+
+## Publishing
+
+Releases are uploaded by hand; there is no CI and no Azure DevOps token.
+
+1. Bump `version` in `package.json` and add an entry to `CHANGELOG.md`.
+2. `npx @vscode/vsce package` writes `command-layer-<version>.vsix`. Try it
+   with `code --install-extension command-layer-<version>.vsix`.
+3. On [marketplace.visualstudio.com/manage](https://marketplace.visualstudio.com/manage),
+   open the `saemeon` publisher and choose **New extension**, then **Visual
+   Studio Code** for the first release, or the extension's `...` menu, then
+   **Update**, for a later one. Upload the `.vsix`.
+4. Tag it: `git tag v<version> && git push --tags`.
